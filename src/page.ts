@@ -47,10 +47,12 @@ const TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
  .msg{font-size:13px;min-height:18px;margin-top:12px}
  .msg.ok{color:var(--ok)} .msg.err{color:var(--err)}
- .done .form{display:none} .done .check{display:flex}
- .check{display:none;flex-direction:column;align-items:center;gap:10px;padding:18px 0 8px}
- .check .ring{width:46px;height:46px;border-radius:50%;background:rgba(74,222,128,.12);
-   border:1px solid rgba(74,222,128,.4);display:grid;place-items:center;color:var(--ok);font-size:22px}
+ .done .head{display:none} .done .form{display:none} .done .check{display:flex}
+ .check{display:none;flex-direction:column;align-items:center;gap:12px;padding:30px 0 24px;text-align:center}
+ .check .ring{width:54px;height:54px;border-radius:50%;background:rgba(74,222,128,.12);
+   border:1px solid rgba(74,222,128,.45);display:grid;place-items:center;color:var(--ok);font-size:26px}
+ .check .ctitle{font-size:15px;font-weight:600}
+ .check .csub{font-size:13px;color:var(--mut)}
 </style></head><body>
 <div class=card id=card>
  <div class=head>
@@ -69,7 +71,8 @@ const TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
  </div>
  <div class=check>
   <div class=ring>✓</div>
-  <div>Stored. You can close this tab.</div>
+  <div class=ctitle id=ctitle>Secret stored</div>
+  <div class=csub id=csub>Closing this tab…</div>
  </div>
 </div>
 <script>
@@ -80,6 +83,15 @@ const TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
    const f=document.getElementById(b.dataset.for),p=f.type==='password';
    f.type=p?'text':'password';b.textContent=p?'🙈':'👁';f.focus();});
  function msg(cls,text){m.className='msg'+(cls?' '+cls:'');m.textContent=text;}
+ function finish(){
+   card.classList.add('done');
+   document.getElementById('ctitle').textContent=fields.length>1?fields.length+' secrets stored':'Secret stored';
+   const sub=document.getElementById('csub');let left=3;
+   (function tick(){
+     if(left<=0){window.close();setTimeout(()=>{sub.textContent='You can close this tab.';},300);return;}
+     sub.textContent='Closing in '+left+'…';left--;setTimeout(tick,1000);
+   })();
+ }
  async function send(){
    if(fields.some(f=>!f.value)){msg('err','Fill every field first.');fields.find(f=>!f.value).focus();return;}
    go.disabled=true;msg('','Storing…');
@@ -87,7 +99,7 @@ const TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
    try{
      const r=await fetch('{token}/submit',{method:'POST',
        headers:{'content-type':'application/json'},body:JSON.stringify({secrets})});
-     if(r.ok){fields.forEach(f=>f.value='');card.classList.add('done');}
+     if(r.ok){fields.forEach(f=>f.value='');finish();}
      else{msg('err','Store failed: '+await r.text());go.disabled=false;}
    }catch(e){msg('err','Error: '+e);go.disabled=false;}
  }

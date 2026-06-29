@@ -1,0 +1,8 @@
+node_modules
+bun.lock
+*.png
+*.html
+# stale pre-rewrite python artifacts (safe to delete)
+.venv
+__pycache__
+.pytest_cache
