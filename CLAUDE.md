@@ -6,10 +6,17 @@ as a Claude Code plugin (skill + command wrapper).
 
 ## Layout
 
-- `bin/get-secret` — the CLI (Python stdlib only; the source of truth)
+- `get_secret.py` — all logic (stdlib only; importable + testable). Source of truth.
+- `bin/get-secret` — thin entry-point shim that imports and runs `get_secret.main`.
 - `skills/get-secret/SKILL.md` — how the agent should use it
 - `commands/get-secret.md` — `/get-secret` slash-command wrapper
-- `tests/selftest.sh` — headless end-to-end contract test
+- `tests/` — pytest suite (`test_stores.py` unit, `test_server.py` integration)
+
+Testable seams in `get_secret.py`: `store_*` / `dispatch_store` are pure I/O;
+`CaptureSession` owns the server + result; `make_handler` builds the handler
+against a session; `exit_code` maps result → exit status; `main` only wires
+argv → session → browser. Tests never spawn a process — they call functions
+and drive `CaptureSession` in-process on port 0.
 
 ## Run
 
@@ -20,13 +27,15 @@ as a Claude Code plugin (skill + command wrapper).
 ## Test
 
 ```bash
-./tests/selftest.sh
+python -m venv .venv && .venv/bin/pip install pytest   # one-time
+.venv/bin/python -m pytest
 ```
 
-The self-test drives the server headlessly (no browser) on a fixed port,
-posts a known value, and asserts: the secret never appears on stdout/stderr,
-the destination file is mode `0600` and holds the value, and a cross-origin
-POST is rejected with 403. The keychain leg runs only on macOS.
+pytest is a dev-only dependency; the CLI itself has zero runtime deps. Unit
+tests cover the store layer (0600 perms, symlink refusal, env exact-key dedup,
+newline/name validation, keychain argv). Integration tests drive the handler
+over a raw socket for deterministic Host/Origin/Content-Length control and
+assert every HTTP guard, single-use, and the no-leak contract.
 
 ## Constraints
 

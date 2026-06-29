@@ -20,7 +20,7 @@ As a Claude Code plugin:
 claude plugin add github:maferland/get-secret
 ```
 
-Or use the CLI directly — it's a single dependency-free Python file:
+Or use the CLI directly — dependency-free Python (standard library only):
 
 ```bash
 git clone https://github.com/maferland/get-secret
