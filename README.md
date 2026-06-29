@@ -6,6 +6,10 @@
 
 ---
 
+<p align="center">
+  <img src="assets/screenshot.png" width="460" alt="get-secret localhost form">
+</p>
+
 Your agent needs an API key to run a command. Normally you'd paste it into the
 chat — where it lands in the model's context, the transcript, and any logs.
 `get-secret` opens a one-field form on `localhost`, you type the secret there,
