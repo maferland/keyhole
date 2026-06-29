@@ -10,7 +10,7 @@ export interface Args {
   timeout: number
 }
 
-const HELP = `usage: get-secret <name>... [--dest DEST] [--context TEXT] [--port N] [--timeout S]
+const HELP = `usage: keyhole <name>... [--dest DEST] [--context TEXT] [--port N] [--timeout S]
 
 Capture one or more secrets via a localhost form. The values reach the store by
 reference and never touch stdout. Pass several names for a multi-field form.
@@ -70,7 +70,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   try {
     args = parseArgs(argv)
   } catch (e) {
-    log(`get-secret: ${(e as Error).message}`)
+    log(`keyhole: ${(e as Error).message}`)
     return 2
   }
 
@@ -78,11 +78,11 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   try {
     session = await new CaptureSession(args).listen()
   } catch (e) {
-    log(`get-secret: cannot bind port ${args.port || "<random>"}: ${(e as Error).message}`)
+    log(`keyhole: cannot bind port ${args.port || "<random>"}: ${(e as Error).message}`)
     return 3
   }
 
-  log(`get-secret: open ${session.url}`)
+  log(`keyhole: open ${session.url}`)
   log(`  ${args.names.join(", ")}  dest=${args.dest}  (waiting up to ${args.timeout}s)`)
   openBrowser(session.url)
 
@@ -91,7 +91,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
 
   const code = exitCode(result)
   if (code === 0) process.stdout.write(JSON.stringify(result) + "\n")
-  else if (code === 3) log(`get-secret: store failed: ${result.error}`)
-  else log("get-secret: timed out, nothing stored")
+  else if (code === 3) log(`keyhole: store failed: ${result.error}`)
+  else log("keyhole: timed out, nothing stored")
   return code
 }

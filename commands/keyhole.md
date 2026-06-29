@@ -5,7 +5,7 @@ allowed-tools: Bash
 
 ## Capture a secret securely
 
-!`"${CLAUDE_PLUGIN_ROOT}/bin/get-secret" $ARGUMENTS`
+!`"${CLAUDE_PLUGIN_ROOT}/bin/keyhole" $ARGUMENTS`
 
 ## Your task
 
