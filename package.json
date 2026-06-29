@@ -4,9 +4,16 @@
   "description": "Hand a secret to your AI coding agent through a localhost form — the value reaches a store by reference and never enters the chat context",
   "type": "module",
   "bin": {
-    "keyhole": "bin/keyhole"
+    "keyhole": "dist/cli.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
+    "build": "bun build src/cli-entry.ts --target node --outfile dist/cli.js --banner \"#!/usr/bin/env node\" && chmod +x dist/cli.js",
+    "prepublishOnly": "bun run build",
     "test": "vitest run",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
@@ -17,7 +24,8 @@
     "api-key",
     "keychain",
     "security",
-    "localhost"
+    "localhost",
+    "claude"
   ],
   "homepage": "https://github.com/maferland/keyhole",
   "repository": "https://github.com/maferland/keyhole",
@@ -27,7 +35,7 @@
     "email": "maferland@users.noreply.github.com"
   },
   "engines": {
-    "bun": ">=1.0.0"
+    "node": ">=18"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

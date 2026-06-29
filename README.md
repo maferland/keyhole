@@ -18,22 +18,28 @@ The agent gets back **only a reference** — never the value.
 
 ## Prerequisites
 
-- [Bun](https://bun.sh) (the CLI runs as TypeScript, no build step)
-- macOS for the `keychain` destination; `file:`/`env:` work anywhere
+- Node 18+ to run the CLI (`npx keyhole`). The Claude Code plugin runs under [Bun](https://bun.sh).
+- macOS for the `keychain` destination; `file:`/`env:` work anywhere.
 
 ## Install
 
-As a Claude Code plugin:
+As a Claude Code plugin (no clone):
 
 ```bash
 claude plugin add github:maferland/keyhole
 ```
 
-Or link the CLI onto your PATH:
+As a CLI via npm:
 
 ```bash
-git clone https://github.com/maferland/keyhole
-cd keyhole && bun link
+npx keyhole OPENAI_API_KEY --context '...'   # run without installing
+npm install -g keyhole                        # or install once, then: keyhole ...
+```
+
+From source (contributors):
+
+```bash
+git clone https://github.com/maferland/keyhole && cd keyhole && bun link
 ```
 
 ## Usage
@@ -117,9 +123,15 @@ Guards:
 
 ```bash
 bun install
-bun test          # vitest: unit + in-process integration
+bun run test      # vitest: unit + in-process integration
 bunx tsc --noEmit
+bun run build     # bundle the node CLI to dist/
 ```
+
+## Support
+
+If keyhole saves you from pasting one more secret into a chat box,
+[buy me a coffee](https://www.buymeacoffee.com/maferland).
 
 ## License
 

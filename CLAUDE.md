@@ -10,9 +10,15 @@ only references. Ships as a Claude Code plugin (skill + command wrapper).
 - `src/page.ts` — `buildPage` renders the form (single or multi-field)
 - `src/server.ts` — `CaptureSession`: node:http server, request guards, single-use
 - `src/cli.ts` — `parseArgs`, `exitCode`, `main` (argv → session → browser)
-- `bin/keyhole` — Bun entry shim; package.json `bin` exposes it on PATH via `bun link`
+- `src/cli-entry.ts` — runs `main()` then exits; the bundle entry point
+- `bin/keyhole` — Bun source entry for the Claude plugin + local dev
+- `dist/cli.js` — built node bundle (`bun run build`); the npm `bin` (runs on plain node)
 - `skills/` + `commands/` — Claude Code plugin surface
 - `tests/` — vitest: `stores.test.ts` (unit), `server.test.ts` (in-process integration)
+
+Two runtimes by channel: the Claude plugin runs `bin/keyhole` under Bun (source
+`.ts`); the npm package ships `dist/cli.js` built for node so `npx keyhole`
+needs no Bun. Published from CI on a `v*` tag with npm provenance.
 
 ## Run
 
@@ -27,6 +33,7 @@ bun install
 bun run test
 bunx tsc --noEmit
 bunx prettier --check .
+bun run build     # bundle dist/cli.js for node
 ```
 
 Tests run under node (vitest) using only node-compatible APIs. Integration

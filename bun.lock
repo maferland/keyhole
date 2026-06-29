@@ -2,7 +2,7 @@
   "lockfileVersion": 1,
   "workspaces": {
     "": {
-      "name": "get-secret",
+      "name": "keyhole",
       "devDependencies": {
         "@types/node": "^22.10.0",
         "prettier": "^3.4.0",
