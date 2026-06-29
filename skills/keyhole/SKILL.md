@@ -1,10 +1,10 @@
 ---
-name: get-secret
+name: keyhole
 description: Use when you need one or more secrets (API key, token, password, credential) from the user and they should NOT paste them into the chat. Triggers on "I'll give you the key in a form", "don't want to paste the secret here", "capture this credential securely", or any time a command you're about to run needs a secret value. Opens a localhost form; values flow to a store by reference and never enter your context.
 allowed-tools: Bash, Bash(security:*)
 ---
 
-# get-secret — capture secrets without them touching the chat
+# keyhole — capture secrets without them touching the chat
 
 The user types secrets into a localhost browser form. Each value is written
 straight to a destination (Keychain / file / env file). You get back **only
@@ -31,15 +31,15 @@ The CLI is blocking:
 ### 1. Invoke via Bash — never just emit the slash command as text
 
 ```
-Bash(command="\"${CLAUDE_PLUGIN_ROOT}/bin/get-secret\" OPENAI_API_KEY --context 'OpenAI key for the ingest script'")
+Bash(command="\"${CLAUDE_PLUGIN_ROOT}/bin/keyhole\" OPENAI_API_KEY --context 'OpenAI key for the ingest script'")
 ```
 
-(If you've run `bun link`, plain `get-secret …` also works.)
+(If you've run `bun link`, plain `keyhole …` also works.)
 
 Capture several at once by passing multiple names — one form, a field each:
 
 ```
-Bash(command="get-secret OPENAI_API_KEY ANTHROPIC_API_KEY --dest env:./.env.local")
+Bash(command="keyhole OPENAI_API_KEY ANTHROPIC_API_KEY --dest env:./.env.local")
 ```
 
 Pick the destination with `--dest`:

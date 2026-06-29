@@ -8,7 +8,7 @@ function esc(s: string): string {
 
 const TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1">
-<title>get-secret · {title}</title>
+<title>keyhole · {title}</title>
 <style>
  :root{--bg:#0b0d12;--card:#151a23;--line:#262d3a;--ink:#e8eaee;--mut:#8b93a3;
    --accent:#5b8cff;--ok:#4ade80;--err:#f87171}

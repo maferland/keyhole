@@ -1,4 +1,4 @@
-# get-secret — project context
+# keyhole — project context
 
 TypeScript CLI (runs under Bun, no build step) that captures one or more
 secrets via a localhost browser form and writes them to a store, returning
@@ -10,14 +10,14 @@ only references. Ships as a Claude Code plugin (skill + command wrapper).
 - `src/page.ts` — `buildPage` renders the form (single or multi-field)
 - `src/server.ts` — `CaptureSession`: node:http server, request guards, single-use
 - `src/cli.ts` — `parseArgs`, `exitCode`, `main` (argv → session → browser)
-- `bin/get-secret` — Bun entry shim; package.json `bin` exposes it on PATH via `bun link`
+- `bin/keyhole` — Bun entry shim; package.json `bin` exposes it on PATH via `bun link`
 - `skills/` + `commands/` — Claude Code plugin surface
 - `tests/` — vitest: `stores.test.ts` (unit), `server.test.ts` (in-process integration)
 
 ## Run
 
 ```bash
-./bin/get-secret MY_KEY --dest file:/tmp/x --context 'demo'
+./bin/keyhole MY_KEY --dest file:/tmp/x --context 'demo'
 ```
 
 ## Test

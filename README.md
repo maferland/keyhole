@@ -1,5 +1,5 @@
 <div align="center">
-<h1>🔑 get-secret</h1>
+<h1>🔑 keyhole</h1>
 
 <p>Hand a secret to your AI coding agent without pasting it in the chat</p>
 </div>
@@ -7,12 +7,12 @@
 ---
 
 <p align="center">
-  <img src="assets/screenshot.png" width="460" alt="get-secret localhost form">
+  <img src="assets/screenshot.png" width="460" alt="keyhole localhost form">
 </p>
 
 Your agent needs an API key to run a command. Normally you'd paste it into the
 chat — where it lands in the model's context, the transcript, and any logs.
-`get-secret` opens a one-field form on `localhost`, you type the secret there,
+`keyhole` opens a one-field form on `localhost`, you type the secret there,
 and the value goes straight to a store (macOS Keychain, a file, or an env file).
 The agent gets back **only a reference** — never the value.
 
@@ -26,26 +26,26 @@ The agent gets back **only a reference** — never the value.
 As a Claude Code plugin:
 
 ```bash
-claude plugin add github:maferland/get-secret
+claude plugin add github:maferland/keyhole
 ```
 
 Or link the CLI onto your PATH:
 
 ```bash
-git clone https://github.com/maferland/get-secret
-cd get-secret && bun link
+git clone https://github.com/maferland/keyhole
+cd keyhole && bun link
 ```
 
 ## Usage
 
 ```bash
-get-secret OPENAI_API_KEY --context 'OpenAI key for the ingest script'
+keyhole OPENAI_API_KEY --context 'OpenAI key for the ingest script'
 ```
 
 Pass several names for one form with a field per secret:
 
 ```bash
-get-secret OPENAI_API_KEY ANTHROPIC_API_KEY --dest env:./.env.local
+keyhole OPENAI_API_KEY ANTHROPIC_API_KEY --dest env:./.env.local
 ```
 
 The command opens the form, **blocks** until you click **Store**, then prints
@@ -107,7 +107,7 @@ Guards:
 
 ## Security notes
 
-- `get-secret` keeps the value out of the **agent's context** — that is its
+- `keyhole` keeps the value out of the **agent's context** — that is its
   job. It is not at-rest encryption. `file:`/`env:` destinations are plaintext
   on disk (mode `0600`); `keychain` is encrypted at rest.
 - The `keychain` destination passes the value on `argv`, briefly visible to

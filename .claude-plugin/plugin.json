@@ -1,5 +1,5 @@
 {
-  "name": "get-secret",
+  "name": "keyhole",
   "version": "0.1.0",
   "description": "Hand a secret to your AI coding agent through a localhost form — the value reaches a store by reference and never enters the chat context",
   "author": {
@@ -7,7 +7,7 @@
     "email": "maferland@users.noreply.github.com"
   },
   "keywords": ["secret", "credential", "api-key", "keychain", "security", "localhost"],
-  "homepage": "https://github.com/maferland/get-secret",
-  "repository": "https://github.com/maferland/get-secret",
+  "homepage": "https://github.com/maferland/keyhole",
+  "repository": "https://github.com/maferland/keyhole",
   "license": "MIT"
 }
