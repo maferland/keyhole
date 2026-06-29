@@ -42,6 +42,29 @@ From source (contributors):
 git clone https://github.com/maferland/keyhole && cd keyhole && bun link
 ```
 
+### Other agents (Codex, etc.)
+
+keyhole is just a CLI, so any agent that can run shell commands can use it.
+
+1. Install the CLI so the agent's shell can reach it:
+
+   ```bash
+   npm install -g keyhole
+   ```
+
+2. Teach the agent to prefer it. Codex mirrors Claude — drop a skill into
+   `~/.codex/skills/keyhole/SKILL.md` (see [skills/keyhole](skills/keyhole/SKILL.md),
+   invoking the `keyhole` command directly). For any other agent, add a line to
+   its instructions (`AGENTS.md`, system prompt):
+
+   > To collect a secret, run `keyhole <NAME> --context '<what it is for>'` (pass
+   > several names for several secrets). Use the returned `retrieve` reference and
+   > never ask the user to paste a secret into the chat.
+
+3. Optional — if the agent supports Stop hooks (Codex: `~/.codex/hooks.json`),
+   wire up the nudge hook from [hooks/README.md](hooks/README.md) to catch slips
+   automatically.
+
 ## Usage
 
 ```bash
