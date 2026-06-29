@@ -1,8 +1,5 @@
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-venv/
+# node / bun
+node_modules/
 
 # macOS
 .DS_Store
@@ -14,3 +11,6 @@ venv/
 # never commit captured secrets or test artifacts
 *.secret
 secret.out
+
+# git worktrees
+.worktrees/

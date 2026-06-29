@@ -1,0 +1,38 @@
+{
+  "name": "get-secret",
+  "version": "0.2.0",
+  "description": "Hand a secret to your AI coding agent through a localhost form — the value reaches a store by reference and never enters the chat context",
+  "type": "module",
+  "bin": {
+    "get-secret": "bin/get-secret"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "keywords": [
+    "secret",
+    "credential",
+    "api-key",
+    "keychain",
+    "security",
+    "localhost"
+  ],
+  "homepage": "https://github.com/maferland/get-secret",
+  "repository": "https://github.com/maferland/get-secret",
+  "license": "MIT",
+  "author": {
+    "name": "Marc-Antoine Ferland",
+    "email": "maferland@users.noreply.github.com"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "prettier": "^3.4.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}

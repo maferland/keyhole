@@ -12,6 +12,11 @@ chat — where it lands in the model's context, the transcript, and any logs.
 and the value goes straight to a store (macOS Keychain, a file, or an env file).
 The agent gets back **only a reference** — never the value.
 
+## Prerequisites
+
+- [Bun](https://bun.sh) (the CLI runs as TypeScript, no build step)
+- macOS for the `keychain` destination; `file:`/`env:` work anywhere
+
 ## Install
 
 As a Claude Code plugin:
@@ -20,11 +25,11 @@ As a Claude Code plugin:
 claude plugin add github:maferland/get-secret
 ```
 
-Or use the CLI directly — dependency-free Python (standard library only):
+Or link the CLI onto your PATH:
 
 ```bash
 git clone https://github.com/maferland/get-secret
-ln -s "$PWD/get-secret/bin/get-secret" ~/.local/bin/get-secret
+cd get-secret && bun link
 ```
 
 ## Usage
@@ -33,18 +38,30 @@ ln -s "$PWD/get-secret/bin/get-secret" ~/.local/bin/get-secret
 get-secret OPENAI_API_KEY --context 'OpenAI key for the ingest script'
 ```
 
-The command:
-- opens a localhost form in your browser and prints the URL on stderr
-- **blocks** until you click **Store secret**
-- prints one JSON line on **stdout** — the reference, with no secret value:
+Pass several names for one form with a field per secret:
 
-```json
-{"name":"OPENAI_API_KEY","dest":"keychain:OPENAI_API_KEY","stored":true,
- "retrieve":"security find-generic-password -s OPENAI_API_KEY -a $USER -w"}
+```bash
+get-secret OPENAI_API_KEY ANTHROPIC_API_KEY --dest env:./.env.local
 ```
 
-Then use the secret by expanding the reference at runtime, so the value is
-never captured:
+The command opens the form, **blocks** until you click **Store**, then prints
+one JSON line on **stdout** — the references, with no secret values:
+
+```json
+{
+  "stored": true,
+  "secrets": [
+    {
+      "name": "OPENAI_API_KEY",
+      "dest": "keychain:OPENAI_API_KEY",
+      "retrieve": "security find-generic-password -s OPENAI_API_KEY -a $USER -w"
+    }
+  ]
+}
+```
+
+Use each secret by expanding its `retrieve` reference at runtime, so the value
+is never captured:
 
 ```bash
 curl -H "Authorization: Bearer $(security find-generic-password -s OPENAI_API_KEY -a $USER -w)" ...
@@ -54,48 +71,51 @@ curl -H "Authorization: Bearer $(security find-generic-password -s OPENAI_API_KE
 
 Where the value lives is independent of how it gets there. Pick with `--dest`:
 
-| `--dest`              | Stored as                              | Default |
-|-----------------------|----------------------------------------|---------|
-| `keychain`            | macOS Keychain, service = `<name>`     | ✓       |
-| `keychain:my-service` | Keychain under a custom service name   |         |
-| `file:/path`          | raw value in a `0600` file             |         |
-| `env:/path`           | `NAME=value` line in a `0600` env file |         |
+| `--dest`              | Stored as                               | Multiple secrets |
+| --------------------- | --------------------------------------- | ---------------- |
+| `keychain`            | macOS Keychain, service = `<name>`      | ✓ (default)      |
+| `keychain:my-service` | Keychain under a custom service name    | ✓                |
+| `file:/path`          | raw value in a `0600` file              | single only      |
+| `env:/path`           | `NAME=value` lines in a `0600` env file | ✓                |
 
 ### Options
 
-| Flag         | Default | Meaning                              |
-|--------------|---------|--------------------------------------|
-| `--context`  | —       | hint shown in the browser form       |
-| `--port`     | `0`     | `0` picks a random free port         |
-| `--timeout`  | `300`   | seconds to wait before giving up     |
+| Flag        | Default | Meaning                          |
+| ----------- | ------- | -------------------------------- |
+| `--context` | —       | hint shown in the browser form   |
+| `--port`    | `0`     | `0` picks a random free port     |
+| `--timeout` | `300`   | seconds to wait before giving up |
 
 ## How it works
 
 A localhost-only HTTP server serves the form on a random, unguessable URL path.
-On submit, the value is written directly to the chosen destination by the
-server process and the reference is printed to stdout. The raw value never
-touches stdout, is never logged, and is never read back by the agent.
+On submit, each value is written directly to the chosen destination and the
+references are printed to stdout. Raw values never touch stdout, are never
+logged, and are never read back by the agent.
 
 Guards:
-- binds `127.0.0.1` only
-- random URL token per run; requests to any other path 404
-- rejects cross-origin POSTs (other browser tabs can't post to it)
-- request bodies are never logged
-- single-use: stores once, then shuts down (or times out with nothing stored)
+
+- binds `127.0.0.1` only; `Host` must be loopback on the chosen port (defeats DNS-rebinding)
+- random URL token per run; any other path 404s
+- rejects cross-origin POSTs
+- single-use: stores once, then 409s further submits
+- distinct exit codes: `0` stored, `2` timed out, `3` store failure
 
 ## Security notes
 
 - `get-secret` keeps the value out of the **agent's context** — that is its
-  job. It is not an at-rest encryption tool. `file:`/`env:` destinations are
-  plaintext on disk (mode `0600`); `keychain` is encrypted at rest.
-- The `keychain` destination passes the value on `argv`, so it's briefly
-  visible to `ps` on a multi-user machine. On a shared box prefer `file:` or
-  `env:`.
+  job. It is not at-rest encryption. `file:`/`env:` destinations are plaintext
+  on disk (mode `0600`); `keychain` is encrypted at rest.
+- The `keychain` destination passes the value on `argv`, briefly visible to
+  `ps` on a multi-user machine. On a shared box prefer `file:` or `env:`.
 
-## Requirements
+## Develop
 
-- Python 3.9+ (standard library only — no pip installs)
-- macOS for the `keychain` destination; `file:`/`env:` work anywhere
+```bash
+bun install
+bun test          # vitest: unit + in-process integration
+bunx tsc --noEmit
+```
 
 ## License
 

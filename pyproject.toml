@@ -1,5 +1,0 @@
-[tool.pytest.ini_options]
-# get_secret.py lives at the repo root; put it on the path for `import get_secret`.
-pythonpath = ["."]
-testpaths = ["tests"]
-addopts = "-q"

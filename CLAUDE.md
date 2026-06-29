@@ -1,22 +1,18 @@
 # get-secret — project context
 
-Single-file, dependency-free Python CLI that captures a secret via a localhost
-browser form and writes it to a store, returning only a reference. Also ships
-as a Claude Code plugin (skill + command wrapper).
+TypeScript CLI (runs under Bun, no build step) that captures one or more
+secrets via a localhost browser form and writes them to a store, returning
+only references. Ships as a Claude Code plugin (skill + command wrapper).
 
 ## Layout
 
-- `get_secret.py` — all logic (stdlib only; importable + testable). Source of truth.
-- `bin/get-secret` — thin entry-point shim that imports and runs `get_secret.main`.
-- `skills/get-secret/SKILL.md` — how the agent should use it
-- `commands/get-secret.md` — `/get-secret` slash-command wrapper
-- `tests/` — pytest suite (`test_stores.py` unit, `test_server.py` integration)
-
-Testable seams in `get_secret.py`: `store_*` / `dispatch_store` are pure I/O;
-`CaptureSession` owns the server + result; `make_handler` builds the handler
-against a session; `exit_code` maps result → exit status; `main` only wires
-argv → session → browser. Tests never spawn a process — they call functions
-and drive `CaptureSession` in-process on port 0.
+- `src/stores.ts` — store layer: keychain/file/env + `dispatchStore` (pure I/O)
+- `src/page.ts` — `buildPage` renders the form (single or multi-field)
+- `src/server.ts` — `CaptureSession`: node:http server, request guards, single-use
+- `src/cli.ts` — `parseArgs`, `exitCode`, `main` (argv → session → browser)
+- `bin/get-secret` — Bun entry shim; package.json `bin` exposes it on PATH via `bun link`
+- `skills/` + `commands/` — Claude Code plugin surface
+- `tests/` — vitest: `stores.test.ts` (unit), `server.test.ts` (in-process integration)
 
 ## Run
 
@@ -27,21 +23,19 @@ and drive `CaptureSession` in-process on port 0.
 ## Test
 
 ```bash
-python -m venv .venv && .venv/bin/pip install pytest   # one-time
-.venv/bin/python -m pytest
+bun install
+bun run test
+bunx tsc --noEmit
+bunx prettier --check .
 ```
 
-pytest is a dev-only dependency; the CLI itself has zero runtime deps. Unit
-tests cover the store layer (0600 perms, symlink refusal, env exact-key dedup,
-newline/name validation, keychain argv). Integration tests drive the handler
-over a raw socket for deterministic Host/Origin/Content-Length control and
-assert every HTTP guard, single-use, and the no-leak contract.
+Tests run under node (vitest) using only node-compatible APIs. Integration
+tests drive `CaptureSession` in-process over a raw `node:net` socket for
+deterministic Host/Origin/Content-Length control.
 
 ## Constraints
 
-- **No third-party deps.** Standard library only. If a feature needs a
-  package, reconsider the feature.
-- **Never print, log, or read back the secret value.** stdout carries only the
-  reference. This is the entire point of the tool — guard it in every change.
-- Keep `bin/get-secret` runnable both standalone and via the plugin
-  (`${CLAUDE_PLUGIN_ROOT}/bin/get-secret`).
+- **No runtime deps.** node/bun stdlib only. Dev deps (vitest, prettier, types) are fine.
+- **Never print, log, or read back a secret value.** stdout carries only the
+  references. This is the entire point — guard it in every change.
+- Keep node-compatible APIs (no `Bun.serve`/`Bun.argv`) so vitest can run the code.

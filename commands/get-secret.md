@@ -10,12 +10,12 @@ allowed-tools: Bash
 ## Your task
 
 The command above opened a localhost form, waited for the user to submit, and
-printed a JSON **reference** on stdout — the secret value is NOT in the output
-and must never be.
+printed a JSON object on stdout — `{"stored":true,"secrets":[{name,dest,retrieve}]}`.
+The secret values are NOT in the output and must never be.
 
-Read the `retrieve` field. Use the secret only by expanding that reference
+For each entry in `secrets[]`, use it only by expanding its `retrieve` reference
 inside commands at runtime (e.g. `$(security find-generic-password -s NAME -a $USER -w)`).
-Never `cat`, `echo`, or otherwise surface the stored value.
+Never `cat`, `echo`, or otherwise surface a stored value.
 
-If no name was given, ask the user what to name the secret, then re-invoke with
-`<name> --context '<what it's for>'`.
+Pass multiple names for a multi-field form. If no name was given, ask the user
+what to name the secret, then re-invoke with `<name> --context '<what it's for>'`.
