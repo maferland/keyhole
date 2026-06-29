@@ -7,7 +7,7 @@
 ---
 
 <p align="center">
-  <img src="assets/screenshot.png" width="460" alt="keyhole localhost form">
+  <img src="https://raw.githubusercontent.com/maferland/keyhole/main/assets/screenshot.png" width="460" alt="keyhole localhost form">
 </p>
 
 Your agent needs an API key to run a command. Normally you'd paste it into the
