@@ -2,6 +2,26 @@ import { spawn } from "node:child_process"
 
 import { CaptureSession, type Result } from "./server.ts"
 
+const CURRENT_VERSION = "0.3.0"
+const PKG = "@maferland/keyhole"
+
+function checkUpdate(): void {
+  // Plugin path has `claude plugin update` — no need to nudge
+  if (process.env.CLAUDE_PLUGIN_ROOT) return
+  fetch(`https://registry.npmjs.org/${PKG}/latest`, {
+    signal: AbortSignal.timeout(3000),
+  })
+    .then((r) => r.json())
+    .then((data: { version?: string }) => {
+      if (data.version && data.version !== CURRENT_VERSION) {
+        process.stderr.write(
+          `keyhole: update available ${data.version} (current: ${CURRENT_VERSION}) — npm update -g ${PKG}\n`,
+        )
+      }
+    })
+    .catch(() => {})
+}
+
 export interface Args {
   names: string[]
   dest: string
@@ -85,6 +105,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   log(`keyhole: open ${session.url}`)
   log(`  ${args.names.join(", ")}  dest=${args.dest}  (waiting up to ${args.timeout}s)`)
   openBrowser(session.url)
+  checkUpdate()
 
   const result = await session.wait(args.timeout * 1000)
   session.close()
