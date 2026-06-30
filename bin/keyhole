@@ -214,7 +214,7 @@ function buildPage(names, context, dest, token) {
      </div>
     </div>`).join(`
      `);
-  const url = `127.0.0.1/s${esc(token)}`;
+  const url = `127.0.0.1/s/${esc(token)}`;
   return TEMPLATE.replaceAll("{title}", esc(title)).replaceAll("{url}", url).replaceAll("{ctxchip}", ctxchip).replaceAll("{fields}", fields).replaceAll("{button}", multi ? "Store all →" : "Store →").replaceAll("{kc}", initialChip === "keychain" ? " on" : "").replaceAll("{fl}", initialChip === "file" ? " on" : "").replaceAll("{en}", initialChip === "env" ? " on" : "").replaceAll("{fdis}", multi ? " dis" : "").replaceAll("{ftitle}", multi ? ' title="file: supports one secret only"' : "").replaceAll("{destJson}", JSON.stringify(esc(dest))).replaceAll("{token}", token);
 }
 

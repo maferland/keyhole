@@ -222,7 +222,7 @@ export function buildPage(names: string[], context: string, dest: string, token:
     )
     .join("\n     ")
 
-  const url = `127.0.0.1/s${esc(token)}`
+  const url = `127.0.0.1/s/${esc(token)}`
 
   return TEMPLATE.replaceAll("{title}", esc(title))
     .replaceAll("{url}", url)
