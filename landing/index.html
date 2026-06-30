@@ -200,6 +200,30 @@ nav .wrap {
   color: var(--ac);
 }
 
+/* install tabs */
+.install-tabs {
+  display: inline-flex;
+  gap: 0;
+  border: 1px solid var(--b08);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.install-tab {
+  padding: 6px 14px;
+  font: 500 11.5px/1 'JetBrains Mono', monospace;
+  color: var(--di);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: color .15s, background .15s;
+}
+.install-tab + .install-tab { border-left: 1px solid var(--b08); }
+.install-tab.active {
+  background: color-mix(in srgb, var(--ac) 12%, transparent);
+  color: var(--ac);
+}
+
 /* install pill */
 .install-pill {
   display: inline-flex;
@@ -687,20 +711,26 @@ footer .wrap {
 <!-- ─── hero ───────────────────────────────────────────────────────────── -->
 <section class="hero">
   <div class="wrap">
-    <div class="eyebrow">CLI · CLAUDE CODE PLUGIN</div>
+    <div class="eyebrow">CLI · ANY AGENT</div>
     <h1>Stop pasting secrets into your agent.</h1>
     <p class="subcopy">
       Your agent needs an API key. Normally you'd paste it into the chat — where it lands in
       the context window, transcript, and every log. keyhole hands it a <em>reference</em> instead.
     </p>
     <div>
+      <div class="install-tabs">
+        <button class="install-tab active" id="tab-claude" onclick="switchTab('claude')">Claude</button>
+        <button class="install-tab" id="tab-npm" onclick="switchTab('npm')">CLI</button>
+      </div>
+    </div>
+    <div>
       <div class="install-pill">
         <span class="sig">$</span>
-        <span class="cmd">claude plugin add github:maferland/keyhole</span>
+        <span class="cmd" id="hero-cmd">claude plugin add github:maferland/keyhole</span>
         <button class="copy-chip" id="hero-copy" onclick="copyInstall('hero-copy')">copy</button>
       </div>
     </div>
-    <div class="caption">Runs on Node · macOS, Linux · MIT licensed</div>
+    <div class="caption" id="hero-caption">skill activates automatically · no config needed</div>
   </div>
 </section>
 
@@ -884,7 +914,26 @@ Not the keys to the kingdom.</h2>
 </footer>
 
 <script>
-const INSTALL_CMD = 'claude plugin add github:maferland/keyhole';
+const INSTALL_CMDS = {
+  claude: 'claude plugin add github:maferland/keyhole',
+  npm: 'npm install -g @maferland/keyhole',
+};
+const INSTALL_CAPTIONS = {
+  claude: 'Runs on Node · macOS, Linux · MIT licensed',
+  npm: 'then teach your agent to use keyhole — see the README for a one-liner',
+};
+let activeTab = 'claude';
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.getElementById('tab-claude').classList.toggle('active', tab === 'claude');
+  document.getElementById('tab-npm').classList.toggle('active', tab === 'npm');
+  document.getElementById('hero-cmd').textContent = INSTALL_CMDS[tab];
+  document.getElementById('hero-caption').textContent = INSTALL_CAPTIONS[tab];
+  // reset copy label if mid-copy
+  const heroBtn = document.getElementById('hero-copy');
+  if (heroBtn.textContent !== 'copy') { heroBtn.textContent = 'copy'; clearTimeout(copyTimers['hero-copy']); }
+}
 
 const DEST_DATA = {
   keychain: {
@@ -927,7 +976,8 @@ function setCopied(id, label) {
 }
 
 function copyInstall(id) {
-  navigator.clipboard.writeText(INSTALL_CMD).catch(() => {});
+  const cmd = id === 'nav-copy' ? INSTALL_CMDS.claude : INSTALL_CMDS[activeTab];
+  navigator.clipboard.writeText(cmd).catch(() => {});
   setCopied(id, id === 'nav-copy' ? 'copy install' : 'copy');
 }
 
