@@ -1,0 +1,123 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #0a0e0c;
+  --sf: #0e1411;
+  --si: #070b09;
+  --tb: #0a100d;
+  --sp: #0f1512;
+  --sw: #0d100e;
+  --sk: #0d120f;
+  --sc: #0a0d0b;
+  --ac: #b48cff;
+  --tx: #e8f0ea;
+  --bod: #aeb9b1;
+  --mu: #8c998f;
+  --di: #7e8c82;
+  --cl: #cfd8d1;
+  --so: #9aa79d;
+  --la: #5a6b60;
+  --fa: #4f5d54;
+  --ci: #6f7e74;
+  --da: #d36b5e;
+  --in: #7fb8d8;
+  --b06: rgba(255, 255, 255, 0.06);
+  --b07: rgba(255, 255, 255, 0.07);
+  --b08: rgba(255, 255, 255, 0.08);
+  --b09: rgba(255, 255, 255, 0.09);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-sf: var(--sf);
+  --color-si: var(--si);
+  --color-tb: var(--tb);
+  --color-sp: var(--sp);
+  --color-sw: var(--sw);
+  --color-sk: var(--sk);
+  --color-sc: var(--sc);
+  --color-ac: var(--ac);
+  --color-tx: var(--tx);
+  --color-bod: var(--bod);
+  --color-mu: var(--mu);
+  --color-di: var(--di);
+  --color-cl: var(--cl);
+  --color-so: var(--so);
+  --color-la: var(--la);
+  --color-fa: var(--fa);
+  --color-ci: var(--ci);
+  --color-da: var(--da);
+  --color-in: var(--in);
+  --color-b06: var(--b06);
+  --color-b07: var(--b07);
+  --color-b08: var(--b08);
+  --color-b09: var(--b09);
+
+  --font-mono: var(--font-mono), ui-monospace, Menlo, monospace;
+
+  --animate-kh-up: kh-up 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+  --animate-kh-glow: kh-glow 7s ease-in-out infinite;
+  --animate-kh-blink: kh-blink 1.5s ease-in-out infinite;
+
+  @keyframes kh-up {
+    from {
+      transform: translateY(16px);
+    }
+    to {
+      transform: none;
+    }
+  }
+  @keyframes kh-glow {
+    0%,
+    100% {
+      opacity: 0.5;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.9;
+      transform: scale(1.08);
+    }
+  }
+  @keyframes kh-blink {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.18;
+    }
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--bod);
+  font:
+    400 15px/1.6 var(--font-mono),
+    ui-monospace,
+    Menlo,
+    monospace;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
