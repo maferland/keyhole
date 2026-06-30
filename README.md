@@ -2,7 +2,7 @@
 
 **Stop pasting secrets into your agent.**
 
-Hand your AI coding agent a *reference* — never the value.
+Hand your AI coding agent a _reference_ — never the value.
 
 ![keyhole localhost form](https://raw.githubusercontent.com/maferland/keyhole/main/assets/screenshot.png)
 
@@ -149,10 +149,10 @@ chat. See [hooks/README.md](hooks/README.md).
 ## Security notes
 
 - `keyhole` keeps the value out of the **agent's context** — that is its job.
-It is not at-rest encryption. `file:`/`env:` destinations are plaintext on disk
-(mode `0600`); `keychain` is encrypted at rest.
+  It is not at-rest encryption. `file:`/`env:` destinations are plaintext on disk
+  (mode `0600`); `keychain` is encrypted at rest.
 - The `keychain` destination passes the value on `argv`, briefly visible to
-`ps` on a multi-user machine. On a shared box prefer `file:` or `env:`.
+  `ps` on a multi-user machine. On a shared box prefer `file:` or `env:`.
 
 ## Develop
 
