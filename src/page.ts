@@ -85,6 +85,8 @@ const TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
  button.go:hover{box-shadow:0 12px 32px color-mix(in srgb,var(--ac) 42%,transparent);
    filter:brightness(1.07)}
  .cap{text-align:center;font-size:10.5px;color:var(--fa);margin-top:14px}
+ .upd{display:none;text-align:center;font-size:10px;color:var(--la);margin-top:8px}
+ .upd a{color:var(--ac);text-decoration:none}
  /* submitting state */
  .card.busy .form{opacity:.7;pointer-events:none}
  .card.busy input{border-color:rgba(255,255,255,.06)}
@@ -136,6 +138,7 @@ const TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
     <div class=err id=err><span class=bang>!</span><span class=txt id=errtxt></span></div>
     <button class=go id=go>{button}</button>
     <div class=cap>localhost only · single-use · value never leaves this machine</div>
+    <div class=upd id=upd></div>
    </div>
   </div>
  </div>
@@ -204,6 +207,15 @@ const TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
  go.onclick=send;
  fields.forEach(f=>f.addEventListener('keydown',e=>{
    if(e.key==='Enter'){e.preventDefault();send();}}));
+ (async()=>{try{
+   const d=await(await fetch('https://registry.npmjs.org/@maferland/keyhole/latest',
+     {signal:AbortSignal.timeout(4000)})).json();
+   const el=document.getElementById('upd');
+   if(el&&d.version&&d.version!=='0.3.0'){
+     el.style.display='block';
+     el.innerHTML='update available: <a href="https://github.com/maferland/keyhole/releases" target="_blank">'+d.version+'</a>';
+   }
+ }catch(e){}})();
 </script></body></html>`
 
 export function buildPage(names: string[], context: string, dest: string, token: string): string {

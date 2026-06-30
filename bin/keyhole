@@ -90,6 +90,8 @@ var TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
  button.go:hover{box-shadow:0 12px 32px color-mix(in srgb,var(--ac) 42%,transparent);
    filter:brightness(1.07)}
  .cap{text-align:center;font-size:10.5px;color:var(--fa);margin-top:14px}
+ .upd{display:none;text-align:center;font-size:10px;color:var(--la);margin-top:8px}
+ .upd a{color:var(--ac);text-decoration:none}
  /* submitting state */
  .card.busy .form{opacity:.7;pointer-events:none}
  .card.busy input{border-color:rgba(255,255,255,.06)}
@@ -141,6 +143,7 @@ var TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
     <div class=err id=err><span class=bang>!</span><span class=txt id=errtxt></span></div>
     <button class=go id=go>{button}</button>
     <div class=cap>localhost only · single-use · value never leaves this machine</div>
+    <div class=upd id=upd></div>
    </div>
   </div>
  </div>
@@ -209,6 +212,15 @@ var TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
  go.onclick=send;
  fields.forEach(f=>f.addEventListener('keydown',e=>{
    if(e.key==='Enter'){e.preventDefault();send();}}));
+ (async()=>{try{
+   const d=await(await fetch('https://registry.npmjs.org/@maferland/keyhole/latest',
+     {signal:AbortSignal.timeout(4000)})).json();
+   const el=document.getElementById('upd');
+   if(el&&d.version&&d.version!=='0.3.0'){
+     el.style.display='block';
+     el.innerHTML='update available: <a href="https://github.com/maferland/keyhole/releases" target="_blank">'+d.version+'</a>';
+   }
+ }catch(e){}})();
 </script></body></html>`;
 function buildPage(names, context, dest, token) {
   const multi = names.length > 1;
@@ -420,6 +432,20 @@ function readBody(req) {
 }
 
 // src/cli.ts
+var CURRENT_VERSION = "0.3.0";
+var PKG = "@maferland/keyhole";
+function checkUpdate() {
+  if (process.env.CLAUDE_PLUGIN_ROOT)
+    return;
+  fetch(`https://registry.npmjs.org/${PKG}/latest`, {
+    signal: AbortSignal.timeout(3000)
+  }).then((r) => r.json()).then((data) => {
+    if (data.version && data.version !== CURRENT_VERSION) {
+      process.stderr.write(`keyhole: update available ${data.version} (current: ${CURRENT_VERSION}) — npm update -g ${PKG}
+`);
+    }
+  }).catch(() => {});
+}
 var HELP = `usage: keyhole <name>... [--dest DEST] [--context TEXT] [--port N] [--timeout S]
 
 Capture one or more secrets via a localhost form. The values reach the store by
@@ -498,6 +524,7 @@ async function main(argv = process.argv.slice(2)) {
   log(`keyhole: open ${session.url}`);
   log(`  ${args.names.join(", ")}  dest=${args.dest}  (waiting up to ${args.timeout}s)`);
   openBrowser(session.url);
+  checkUpdate();
   const result = await session.wait(args.timeout * 1000);
   session.close();
   const code = exitCode(result);
