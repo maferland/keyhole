@@ -20,8 +20,8 @@ var TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
 <style>
  :root{
    --bg:#0a0e0c;--sf:#0e1411;--si:#070b09;--tb:#0a100d;--sp:#0f1512;
-   --ac:#b48cff;--tx:#e8f0ea;--tb2:#aeb9b1;--mu:#8c998f;--di:#7e8c82;
-   --cl:#cfd8d1;--so:#9aa79d;--la:#5a6b60;--fa:#4f5d54;--da:#d36b5e;--in:#7fb8d8;
+   --ac:#b48cff;--tx:#e8f0ea;--tb2:#aeb9b1;--mu:#a0aca5;--di:#96a49c;
+   --cl:#cfd8d1;--so:#9aa79d;--la:#7a9085;--fa:#6e8078;--da:#d36b5e;--in:#7fb8d8;
    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
  }
  *{box-sizing:border-box}
