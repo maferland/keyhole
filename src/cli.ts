@@ -11,8 +11,8 @@ function checkUpdate(): void {
   fetch(`https://registry.npmjs.org/${PKG}/latest`, {
     signal: AbortSignal.timeout(3000),
   })
-    .then((r) => r.json())
-    .then((data: { version?: string }) => {
+    .then((r) => r.json() as Promise<{ version?: string }>)
+    .then((data) => {
       if (data.version && data.version !== CURRENT_VERSION) {
         process.stderr.write(
           `keyhole: update available ${data.version} (current: ${CURRENT_VERSION}) — npm update -g ${PKG}\n`,
