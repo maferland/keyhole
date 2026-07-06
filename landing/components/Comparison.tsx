@@ -29,7 +29,8 @@ export function Comparison() {
                 agent: <span className="text-ac">keychain:OPENAI_API_KEY</span>
               </div>
               <div className="mt-1.5 text-[10.5px] text-la">
-                ↳ a reference it expands only at runtime. The value is elsewhere.
+                ↳ a reference to the stored secret. The value lives in your
+                Keychain, not the chat.
               </div>
             </div>
             <div className="text-[13px] leading-[1.6] text-mu">

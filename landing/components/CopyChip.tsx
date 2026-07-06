@@ -23,9 +23,17 @@ export function CopyChip({ text, label = "copy", className }: CopyChipProps) {
     <button
       type="button"
       onClick={handleClick}
-      className={`inline-flex flex-none cursor-pointer items-center whitespace-nowrap rounded-md border border-[color-mix(in_srgb,var(--ac)_28%,transparent)] bg-[color-mix(in_srgb,var(--ac)_14%,transparent)] px-2.5 py-1 font-mono text-[11.5px] leading-none font-semibold text-ac transition-transform duration-150 ease-[cubic-bezier(0.2,0.7,0.2,1)] hover:-translate-y-px active:translate-y-0 ${className ?? ""}`}
+      className={`inline-grid flex-none cursor-pointer place-items-center whitespace-nowrap rounded-md border border-[color-mix(in_srgb,var(--ac)_28%,transparent)] bg-[color-mix(in_srgb,var(--ac)_14%,transparent)] px-2.5 py-1 font-mono text-[11.5px] leading-none font-semibold text-ac transition-transform duration-150 ease-[cubic-bezier(0.2,0.7,0.2,1)] hover:-translate-y-px active:translate-y-0 ${className ?? ""}`}
     >
-      {copied ? "copied ✓" : label}
+      <span className={`col-start-1 row-start-1 ${copied ? "invisible" : ""}`}>
+        {label}
+      </span>
+      <span
+        aria-hidden={!copied}
+        className={`col-start-1 row-start-1 ${copied ? "" : "invisible"}`}
+      >
+        copied ✓
+      </span>
     </button>
   );
 }
