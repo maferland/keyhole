@@ -34,6 +34,19 @@ From source:
 git clone https://github.com/maferland/keyhole && cd keyhole && bun link
 ```
 
+### Keeping it updated
+
+The plugin and the npm CLI update on separate tracks:
+
+```bash
+claude plugin update keyhole            # Claude Code plugin
+npm install -g @maferland/keyhole       # global npm install (npx is always latest)
+```
+
+The CLI prints a one-line notice on stderr when a newer npm version exists, and
+the capture form shows an "update available" link. Plugin installs update only
+via `claude plugin update`.
+
 ### Other agents (Codex, etc.)
 
 keyhole is a CLI, so any agent that can run shell commands can use it.

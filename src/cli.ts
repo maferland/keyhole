@@ -1,9 +1,10 @@
 import { spawn } from "node:child_process"
 
 import { CaptureSession, type Result } from "./server.ts"
+import pkg from "../package.json" with { type: "json" }
 
-const CURRENT_VERSION = "0.3.0"
-const PKG = "@maferland/keyhole"
+const CURRENT_VERSION = pkg.version
+const PKG = pkg.name
 
 function checkUpdate(): void {
   // Plugin path has `claude plugin update` — no need to nudge
