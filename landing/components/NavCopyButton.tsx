@@ -18,9 +18,17 @@ export function NavCopyButton() {
     <button
       type="button"
       onClick={handleClick}
-      className="inline-flex cursor-pointer items-center gap-1.5 rounded-[7px] border border-[color-mix(in_srgb,var(--ac)_38%,transparent)] bg-transparent px-[15px] py-2 font-mono text-[12.5px] leading-none font-semibold text-ac transition-transform duration-150 ease-[cubic-bezier(0.2,0.7,0.2,1)] hover:-translate-y-px active:translate-y-0"
+      className="inline-grid cursor-pointer place-items-center rounded-[7px] border border-[color-mix(in_srgb,var(--ac)_38%,transparent)] bg-transparent px-[15px] py-2 font-mono text-[12.5px] leading-none font-semibold whitespace-nowrap text-ac transition-transform duration-150 ease-[cubic-bezier(0.2,0.7,0.2,1)] hover:-translate-y-px active:translate-y-0"
     >
-      {copied ? "copied ✓" : "copy install"}
+      <span className={`col-start-1 row-start-1 ${copied ? "invisible" : ""}`}>
+        copy install
+      </span>
+      <span
+        aria-hidden={!copied}
+        className={`col-start-1 row-start-1 ${copied ? "" : "invisible"}`}
+      >
+        copied ✓
+      </span>
     </button>
   );
 }

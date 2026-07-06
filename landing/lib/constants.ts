@@ -7,7 +7,7 @@ export const INSTALL_CMDS: Record<InstallTab, string> = {
 
 export const INSTALL_CAPTIONS: Record<InstallTab, string> = {
   claude: "Runs on Node · macOS, Linux · MIT licensed",
-  npm: "then teach your agent to use keyhole — see the README for a one-liner",
+  npm: "Runs on Node · macOS, Linux · MIT licensed",
 };
 
 export type Dest = "keychain" | "file" | "env";
