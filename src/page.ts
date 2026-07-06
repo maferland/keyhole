@@ -1,3 +1,5 @@
+import pkg from "../package.json" with { type: "json" }
+
 function esc(s: string): string {
   return s
     .replaceAll("&", "&amp;")
@@ -225,10 +227,10 @@ const TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
  fields.forEach(f=>f.addEventListener('keydown',e=>{
    if(e.key==='Enter'){e.preventDefault();send();}}));
  (async()=>{try{
-   const d=await(await fetch('https://registry.npmjs.org/@maferland/keyhole/latest',
+   const d=await(await fetch('https://registry.npmjs.org/{pkg}/latest',
      {signal:AbortSignal.timeout(4000)})).json();
    const el=document.getElementById('upd');
-   if(el&&d.version&&d.version!=='0.3.0'){
+   if(el&&d.version&&d.version!=='{version}'){
      el.style.display='block';
      el.innerHTML='update available: <a href="https://github.com/maferland/keyhole/releases" target="_blank">'+d.version+'</a>';
    }
@@ -286,5 +288,7 @@ export function buildPage(names: string[], context: string, dest: string, token:
     .replaceAll("{eyeIcon}", EYE_SVG)
     .replaceAll("{eyeOffIcon}", EYE_OFF_SVG)
     .replaceAll("{destJson}", JSON.stringify(esc(dest)))
+    .replaceAll("{pkg}", pkg.name)
+    .replaceAll("{version}", pkg.version)
     .replaceAll("{token}", token)
 }

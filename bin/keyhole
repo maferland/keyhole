@@ -6,6 +6,57 @@ import { spawn } from "node:child_process";
 // src/server.ts
 import { randomBytes } from "node:crypto";
 import { createServer } from "node:http";
+// package.json
+var package_default = {
+  name: "@maferland/keyhole",
+  version: "0.4.0",
+  publishConfig: {
+    access: "public"
+  },
+  description: "Hand a secret to your AI coding agent through a localhost form — the value reaches a store by reference and never enters the chat context",
+  type: "module",
+  bin: {
+    keyhole: "bin/keyhole"
+  },
+  files: [
+    "bin/keyhole",
+    "README.md",
+    "LICENSE"
+  ],
+  scripts: {
+    build: 'bun build src/cli-entry.ts --target node --outfile bin/keyhole --banner "#!/usr/bin/env node" && chmod +x bin/keyhole',
+    prepare: "git config core.hooksPath .githooks",
+    prepublishOnly: "bun run build",
+    test: "vitest run",
+    format: "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  keywords: [
+    "secret",
+    "credential",
+    "api-key",
+    "keychain",
+    "security",
+    "localhost",
+    "claude"
+  ],
+  homepage: "https://github.com/maferland/keyhole",
+  repository: "https://github.com/maferland/keyhole",
+  license: "MIT",
+  author: {
+    name: "Marc-Antoine Ferland",
+    email: "maferland@users.noreply.github.com"
+  },
+  engines: {
+    node: ">=18"
+  },
+  devDependencies: {
+    "@types/node": "^22.10.0",
+    prettier: "^3.4.0",
+    typescript: "^5.7.0",
+    vitest: "^2.1.0"
+  }
+};
 
 // src/page.ts
 function esc(s) {
@@ -230,10 +281,10 @@ var TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
  fields.forEach(f=>f.addEventListener('keydown',e=>{
    if(e.key==='Enter'){e.preventDefault();send();}}));
  (async()=>{try{
-   const d=await(await fetch('https://registry.npmjs.org/@maferland/keyhole/latest',
+   const d=await(await fetch('https://registry.npmjs.org/{pkg}/latest',
      {signal:AbortSignal.timeout(4000)})).json();
    const el=document.getElementById('upd');
-   if(el&&d.version&&d.version!=='0.3.0'){
+   if(el&&d.version&&d.version!=='{version}'){
      el.style.display='block';
      el.innerHTML='update available: <a href="https://github.com/maferland/keyhole/releases" target="_blank">'+d.version+'</a>';
    }
@@ -257,7 +308,7 @@ function buildPage(names, context, dest, token) {
     </div>`).join(`
      `);
   const url = `127.0.0.1/s/${esc(token)}`;
-  return TEMPLATE.replaceAll("{title}", esc(title)).replaceAll("{url}", url).replaceAll("{ctxchip}", ctxchip).replaceAll("{fields}", fields).replaceAll("{button}", multi ? "Store all →" : "Store →").replaceAll("{kc}", initialChip === "keychain" ? " on" : "").replaceAll("{fl}", initialChip === "file" ? " on" : "").replaceAll("{en}", initialChip === "env" ? " on" : "").replaceAll("{fdis}", multi ? " dis" : "").replaceAll("{ftitle}", multi ? ' title="file: supports one secret only"' : "").replaceAll("{filehint}", multi ? "<div class=dest-hint>file stores a single value — use env or keychain for multiple secrets</div>" : "").replaceAll("{eyeIcon}", EYE_SVG).replaceAll("{eyeOffIcon}", EYE_OFF_SVG).replaceAll("{destJson}", JSON.stringify(esc(dest))).replaceAll("{token}", token);
+  return TEMPLATE.replaceAll("{title}", esc(title)).replaceAll("{url}", url).replaceAll("{ctxchip}", ctxchip).replaceAll("{fields}", fields).replaceAll("{button}", multi ? "Store all →" : "Store →").replaceAll("{kc}", initialChip === "keychain" ? " on" : "").replaceAll("{fl}", initialChip === "file" ? " on" : "").replaceAll("{en}", initialChip === "env" ? " on" : "").replaceAll("{fdis}", multi ? " dis" : "").replaceAll("{ftitle}", multi ? ' title="file: supports one secret only"' : "").replaceAll("{filehint}", multi ? "<div class=dest-hint>file stores a single value — use env or keychain for multiple secrets</div>" : "").replaceAll("{eyeIcon}", EYE_SVG).replaceAll("{eyeOffIcon}", EYE_OFF_SVG).replaceAll("{destJson}", JSON.stringify(esc(dest))).replaceAll("{pkg}", package_default.name).replaceAll("{version}", package_default.version).replaceAll("{token}", token);
 }
 
 // src/stores.ts
@@ -452,8 +503,8 @@ function readBody(req) {
 }
 
 // src/cli.ts
-var CURRENT_VERSION = "0.3.0";
-var PKG = "@maferland/keyhole";
+var CURRENT_VERSION = package_default.version;
+var PKG = package_default.name;
 function checkUpdate() {
   if (process.env.CLAUDE_PLUGIN_ROOT)
     return;

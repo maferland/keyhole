@@ -36,6 +36,10 @@ Bash(command="\"${CLAUDE_PLUGIN_ROOT}/bin/keyhole\" OPENAI_API_KEY --context 'Op
 
 (If you've run `bun link`, plain `keyhole …` also works.)
 
+If the CLI reports an available update on stderr, tell the user to run
+`claude plugin update keyhole` (plugin installs) or `npm install -g @maferland/keyhole`
+(npm installs). Don't update it yourself.
+
 Capture several at once by passing multiple names — one form, a field each:
 
 ```
