@@ -60,10 +60,13 @@ const TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
  .in{position:relative;display:flex;align-items:center}
  input{flex:1;width:100%;background:var(--si);
    border:1px solid color-mix(in srgb,var(--ac) 38%,transparent);
-   color:var(--cl);font:13.5px var(--mono);padding:12px 14px;border-radius:8px;outline:none}
+   color:var(--cl);font:13.5px var(--mono);padding:12px 42px 12px 14px;border-radius:8px;
+   outline:none;caret-color:var(--ac)}
  input::placeholder{color:transparent}
- .cur{position:absolute;right:14px;width:8px;height:1em;background:var(--ac);
-   border-radius:1px;animation:kh-blink 1.5s ease-in-out infinite;pointer-events:none}
+ .eye{position:absolute;right:6px;display:grid;place-items:center;width:30px;height:30px;
+   background:transparent;border:0;color:var(--fa);cursor:pointer;border-radius:6px;padding:0}
+ .eye:hover{color:var(--ac)}
+ .eye svg{display:block}
  /* dest chips */
  .dest{display:flex;gap:8px;margin-bottom:18px}
  .dchip{flex:1;text-align:center;font:12px var(--mono);padding:8px 0;border-radius:8px;
@@ -73,6 +76,7 @@ const TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
    border-color:color-mix(in srgb,var(--ac) 42%,transparent);color:var(--ac);font-weight:600}
  .dchip.dis{opacity:.4;cursor:not-allowed;pointer-events:none}
  .dest-note{font-size:10.5px;color:var(--fa);margin:-10px 0 16px;text-align:center}
+ .dest-hint{font-size:10.5px;color:var(--la);margin:-8px 0 16px;text-align:center;line-height:1.5}
  /* error banner */
  .err{display:none;align-items:flex-start;gap:9px;background:rgba(211,107,94,.08);
    border:1px solid rgba(211,107,94,.25);border-radius:8px;padding:11px 13px;margin-bottom:16px}
@@ -112,9 +116,13 @@ const TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
  .note{background:var(--tb);border:1px solid rgba(255,255,255,.07);border-radius:8px;
    padding:10px 14px;font-size:10.5px;color:var(--fa);line-height:1.5}
  .note code{font-family:var(--mono);color:var(--so)}
+ .destpath{display:block;font-family:var(--mono);font-size:10.5px;color:var(--so);
+   background:var(--tb);border:1px solid rgba(255,255,255,.06);border-radius:6px;
+   padding:8px 10px;margin:2px 0 12px;word-break:break-all;line-height:1.45;text-align:left}
+ .keys{margin-top:10px;font-size:11.5px;line-height:1.7}
+ .keys .ac{color:var(--ac)}
  @keyframes kh-up{from{transform:translateY(16px)}to{transform:none}}
  @keyframes kh-glow{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:.9;transform:scale(1.08)}}
- @keyframes kh-blink{0%,100%{opacity:1}50%{opacity:.18}}
  @media (prefers-reduced-motion:reduce){*{animation:none !important}}
 </style></head><body>
 <div class=wrap>
@@ -135,6 +143,7 @@ const TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
      <div class="dchip{en}" data-d=env>env</div>
     </div>
     <div class=dest-note id=dest-note></div>
+    {filehint}
     <div class=err id=err><span class=bang>!</span><span class=txt id=errtxt></span></div>
     <button class=go id=go>{button}</button>
     <div class=cap>localhost only · single-use · value never leaves this machine</div>
@@ -166,12 +175,12 @@ const TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
      '<div class=note>'+noteHtml+'</div></div>';
  }
  function success(){
-   const list=multi?fields.map(f=>'<span class=ac>'+f.dataset.name+'</span>').join('\\n'):'';
    const heading=multi?fields.length+' secrets stored.':'Secret stored.';
    const name=!multi&&fields[0]?fields[0].dataset.name:'';
    const fullDest=dest==='keychain'&&name?'keychain:'+name:dest;
+   const keys=multi?'<div class=keys>'+fields.map(f=>'<span class=ac>'+f.dataset.name+'</span>').join('<br>')+'</div>':'';
    dead('ok','✓',heading,
-     'Stored to <span class=ac>'+fullDest+'</span>.\\nYour agent is unblocked and running.'+(list?'\\n'+list:''),
+     '<code class=destpath>'+fullDest+'</code>Your agent is unblocked and running.'+keys,
      'The value never entered the agent\\'s context. You can close this tab.');
  }
  function already(){
@@ -205,6 +214,14 @@ const TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
    card.classList.remove('busy');showError(text);
  }
  go.onclick=send;
+ const EYE='{eyeIcon}',EYE_OFF='{eyeOffIcon}';
+ document.querySelectorAll('.eye').forEach(b=>b.onclick=()=>{
+   const inp=document.getElementById(b.dataset.eye),show=inp.type==='password';
+   inp.type=show?'text':'password';
+   b.innerHTML=show?EYE_OFF:EYE;
+   b.setAttribute('aria-label',show?'Hide value':'Show value');
+   b.title=show?'Hide value':'Show value';
+   inp.focus();});
  fields.forEach(f=>f.addEventListener('keydown',e=>{
    if(e.key==='Enter'){e.preventDefault();send();}}));
  (async()=>{try{
@@ -217,6 +234,9 @@ const TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
    }
  }catch(e){}})();
 </script></body></html>`
+
+const EYE_SVG = `<svg width=15 height=15 viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx=12 cy=12 r=3/></svg>`
+const EYE_OFF_SVG = `<svg width=15 height=15 viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20C5.5 20 2 13 2 13a18.4 18.4 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19M6.1 6.1l11.8 11.8"/><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/></svg>`
 
 export function buildPage(names: string[], context: string, dest: string, token: string): string {
   const multi = names.length > 1
@@ -237,8 +257,9 @@ export function buildPage(names: string[], context: string, dest: string, token:
      <label for="s${i}">${esc(name)}</label>
      <div class=in>
       <input id="s${i}" data-name="${esc(name)}" type=password autocomplete=off autocapitalize=off
-        autocorrect=off spellcheck=false${i === 0 ? " autofocus" : ""}>
-      <span class=cur></span>
+        autocorrect=off spellcheck=false data-1p-ignore data-bwignore data-lpignore=true
+        data-form-type=other${i === 0 ? " autofocus" : ""}>
+      <button type=button class=eye data-eye="s${i}" aria-label="Show value" title="Show value">${EYE_SVG}</button>
      </div>
     </div>`,
     )
@@ -256,6 +277,14 @@ export function buildPage(names: string[], context: string, dest: string, token:
     .replaceAll("{en}", initialChip === "env" ? " on" : "")
     .replaceAll("{fdis}", multi ? " dis" : "")
     .replaceAll("{ftitle}", multi ? ' title="file: supports one secret only"' : "")
+    .replaceAll(
+      "{filehint}",
+      multi
+        ? "<div class=dest-hint>file stores a single value — use env or keychain for multiple secrets</div>"
+        : "",
+    )
+    .replaceAll("{eyeIcon}", EYE_SVG)
+    .replaceAll("{eyeOffIcon}", EYE_OFF_SVG)
     .replaceAll("{destJson}", JSON.stringify(esc(dest)))
     .replaceAll("{token}", token)
 }
