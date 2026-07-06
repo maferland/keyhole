@@ -11,7 +11,13 @@ export function Footer() {
           </span>
         </div>
         <div className="text-xs text-fa">
-          MIT · runs on Node · secrets never leave your machine
+          MIT · runs on Node · built by{" "}
+          <a
+            href="https://maferland.com"
+            className="underline-offset-2 hover:text-ac hover:underline"
+          >
+            maferland.com
+          </a>
         </div>
       </div>
     </footer>
