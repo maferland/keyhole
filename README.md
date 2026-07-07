@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/maferland/keyhole/main/assets/logo-cutout-1024.png" alt="keyhole logo" width="96" height="96">
+
 # keyhole
 
 Stop pasting secrets into your agent.
