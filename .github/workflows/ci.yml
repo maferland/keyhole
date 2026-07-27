@@ -20,8 +20,17 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.22 # pinned so the committed bundle is reproducible
       - run: bun install --frozen-lockfile
       - run: bunx prettier --check .
       - run: bunx tsc --noEmit
       - run: bun run test
       - run: bun run build
+      # bin/keyhole is committed and is what consumers actually run, so a stale
+      # bundle has to fail here instead of shipping.
+      - name: bin/keyhole matches src
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          git diff --exit-code --stat bin/keyhole \
+            || { echo "::error::bin/keyhole is stale. Run 'bun run build' and commit it."; exit 1; }
