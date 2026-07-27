@@ -82,8 +82,7 @@ export class CaptureSession {
     return [
       "default-src 'none'",
       `script-src 'nonce-${this.nonce}'`,
-      `style-src 'nonce-${this.nonce}' https://fonts.googleapis.com`,
-      "font-src https://fonts.gstatic.com",
+      `style-src 'nonce-${this.nonce}'`,
       "connect-src 'self'",
       "form-action 'none'",
       "base-uri 'none'",

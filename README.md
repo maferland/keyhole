@@ -48,8 +48,10 @@ npm install -g @maferland/keyhole       # global npm install (npx is always late
 The CLI prints a one-line notice on stderr when a newer npm version exists. Plugin
 installs update only via `claude plugin update`.
 
-That check is the only network request the CLI process makes, and it fires while you
-are typing a secret, so it is refusable:
+That check is the only network request keyhole makes anywhere. The capture form
+requests nothing at all: no webfont, no analytics, and a CSP of `default-src 'none'`
+that would block one anyway. The check fires while you are typing a secret, so it is
+refusable:
 
 ```bash
 KEYHOLE_NO_UPDATE_CHECK=1 keyhole OPENAI_API_KEY
@@ -185,6 +187,8 @@ Guards:
 - distinct exit codes: `0` stored, `2` timed out or bad usage, `3` store failure
 - bad `--dest`, `--port`, or `--timeout` values fail before the form opens, so no
   one types a secret into a run that cannot succeed
+- `default-src 'none'` CSP with a per-session nonce on the inline style and script;
+  the form loads nothing from anywhere
 
 ## Optional hook
 
