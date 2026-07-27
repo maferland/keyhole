@@ -18,10 +18,14 @@ export class ValidationError extends Error {}
 
 export const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 
-export type Runner = (cmd: string, args: string[]) => { status: number | null; stderr: string }
+export type Runner = (
+  cmd: string,
+  args: string[],
+  stdin: string,
+) => { status: number | null; stderr: string }
 
-const defaultRunner: Runner = (cmd, args) => {
-  const r = spawnSync(cmd, args, { encoding: "utf8" })
+const defaultRunner: Runner = (cmd, args, stdin) => {
+  const r = spawnSync(cmd, args, { encoding: "utf8", input: stdin })
   return { status: r.status, stderr: r.stderr ?? "" }
 }
 
@@ -31,19 +35,16 @@ export function storeKeychain(
   value: string,
   run: Runner = defaultRunner,
 ): string {
+  if (/[\n\r]/.test(value))
+    throw new ValidationError("keychain: cannot store a value containing newlines")
   const account = userInfo().username
-  // `security` has no stdin input mode, so the value rides in argv and is visible to
-  // same-user processes for the duration of this call. No lower-exposure path exists.
-  const r = run("security", [
-    "add-generic-password",
-    "-U",
-    "-a",
-    account,
-    "-s",
-    service,
-    "-w",
-    value,
-  ])
+  // `-w` with no argument reads the value and its confirmation from stdin, keeping it out
+  // of argv where `ps` would show it to any process of this user.
+  const r = run(
+    "security",
+    ["add-generic-password", "-U", "-a", account, "-s", service, "-w"],
+    `${value}\n${value}\n`,
+  )
   if (r.status !== 0) throw new Error(`keychain store failed (security exit ${r.status})`)
   return `security find-generic-password -s ${service} -a ${account} -w`
 }
