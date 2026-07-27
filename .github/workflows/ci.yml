@@ -3,8 +3,9 @@ name: CI
 on:
   push:
     branches: [main]
+  # Unfiltered: a stacked PR based on another branch needs checks too, and filtering on
+  # main meant it only got them at the moment it became mergeable.
   pull_request:
-    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
