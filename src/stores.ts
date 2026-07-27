@@ -82,7 +82,9 @@ function writeFd(fd: number, data: string): void {
 
 // Temp + rename so an interrupted rewrite cannot leave the file truncated. Replaces a
 // symlink at `path` instead of refusing it, which is safe: nothing is written through it.
-function writeAtomic0600(path: string, data: string): void {
+export function writeAtomic0600(path: string, data: string): void {
+  path = expandHome(path)
+  ensureParent(path)
   const tmp = `${path}.keyhole-${process.pid}`
   writeFd(open0600(tmp), data)
   renameSync(tmp, path)
@@ -102,7 +104,6 @@ export function storeEnv(name: string, path: string, value: string): string {
   if (/[\n\r]/.test(value))
     throw new ValidationError("env: cannot store a value containing newlines")
   path = expandHome(path)
-  ensureParent(path)
   const kept = existsSync(path)
     ? readNoFollow(path)
         .split("\n")

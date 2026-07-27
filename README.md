@@ -45,9 +45,9 @@ claude plugin update keyhole            # Claude Code plugin
 npm install -g @maferland/keyhole       # global npm install (npx is always latest)
 ```
 
-The CLI prints a one-line notice on stderr when a newer npm version exists, and
-the capture form shows an "update available" link. Plugin installs update only
-via `claude plugin update`.
+The CLI prints a one-line notice on stderr when a newer npm version exists. The
+capture form itself makes no network requests. Plugin installs update only via
+`claude plugin update`.
 
 ### Other agents (Codex, etc.)
 
@@ -114,11 +114,52 @@ curl -H "Authorization: Bearer $(security find-generic-password -s OPENAI_API_KE
 
 ### Options
 
-| Flag        | Default | Meaning                          |
-| ----------- | ------- | -------------------------------- |
-| `--context` | —       | hint shown in the browser form   |
-| `--port`    | `0`     | `0` picks a random free port     |
-| `--timeout` | `300`   | seconds to wait before giving up |
+| Flag        | Default | Meaning                             |
+| ----------- | ------- | ----------------------------------- |
+| `--context` | —       | hint shown in the browser form      |
+| `--port`    | `0`     | `0` picks a random free port        |
+| `--timeout` | `300`   | seconds to wait before giving up    |
+| `--receipt` | —       | write a reference receipt to a path |
+
+### Receipts
+
+stdout is what the agent consumes to keep working. A receipt is what a human keeps to
+answer "which reference was handed over, for what task?" long after the transcript is
+gone. `--receipt` writes one:
+
+```bash
+keyhole OPENAI_API_KEY --context 'ingest script' --receipt .keyhole/receipt.json
+```
+
+```json
+{
+  "schema": "keyhole.secret_reference_receipt.v1",
+  "keyhole": "0.6.0",
+  "request_id": "9f3c1e7a52b04d18",
+  "created_at": "2026-07-27T18:04:11.402Z",
+  "context": "ingest script",
+  "secrets": [
+    {
+      "name": "OPENAI_API_KEY",
+      "dest": "keychain:OPENAI_API_KEY",
+      "retrieve": "security find-generic-password -s OPENAI_API_KEY -a $USER -w"
+    }
+  ]
+}
+```
+
+It never contains a secret value, not even a hash of one, since a digest of a
+low-entropy secret is an offline oracle. Written at `0600` and only after a store
+succeeds, so a timeout or a failure leaves no receipt. stdout is unchanged either way.
+
+`keyhole` records the version that produced the receipt rather than a block of
+self-reported guard booleans. Those booleans would be compile-time constants, identical
+in a tampered build, whereas the version is checkable against the npm tarball, which is
+published from CI with provenance.
+
+A receipt goes stale without saying so. Treat it as a record of what was granted at that
+moment, not proof of what is still valid: the destination can be overwritten, the secret
+rotated or revoked, or the `retrieve` command copied into an unrelated repo.
 
 ## How it works
 
