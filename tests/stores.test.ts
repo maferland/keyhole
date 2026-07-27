@@ -87,7 +87,7 @@ describe("storeKeychain", () => {
 
   it("builds the security argv and returns a find hint", () => {
     const { calls, run } = spy()
-    const hint = storeKeychain("API_KEY", "my-svc", SECRET, run)
+    const hint = storeKeychain("my-svc", SECRET, run)
     expect(calls[0].args.slice(0, 3)).toEqual(["add-generic-password", "-U", "-a"])
     expect(calls[0].args).toContain("my-svc")
     expect(hint).toContain("find-generic-password -s my-svc")
@@ -97,7 +97,7 @@ describe("storeKeychain", () => {
   // duplicate line answers the "retype password" prompt.
   it("passes the value on stdin and never in argv", () => {
     const { calls, run } = spy()
-    storeKeychain("API_KEY", "my-svc", SECRET, run)
+    storeKeychain("my-svc", SECRET, run)
     expect(calls[0].args).not.toContain(SECRET)
     expect(calls[0].args.join(" ")).not.toContain(SECRET)
     expect(calls[0].args.at(-1)).toBe("-w")
@@ -108,13 +108,13 @@ describe("storeKeychain", () => {
   // Refused up front rather than silently stored wrong. file: takes PEMs fine.
   it.each(["a\nb", "a\r\nb", "trailing\n"])("refuses the multi-line value %j", (value) => {
     const { calls, run } = spy()
-    expect(() => storeKeychain("A", "s", value, run)).toThrow(ValidationError)
+    expect(() => storeKeychain("s", value, run)).toThrow(ValidationError)
     expect(calls).toHaveLength(0)
   })
 
   it("throws when security exits non-zero", () => {
     const run = () => ({ status: 1, stderr: "nope" })
-    expect(() => storeKeychain("A", "s", SECRET, run)).toThrow()
+    expect(() => storeKeychain("s", SECRET, run)).toThrow()
   })
 })
 

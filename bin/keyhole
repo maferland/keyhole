@@ -29,7 +29,7 @@ var defaultRunner = (cmd, args, stdin) => {
   const r = spawnSync(cmd, args, { encoding: "utf8", input: stdin });
   return { status: r.status, stderr: r.stderr ?? "" };
 };
-function storeKeychain(name, service, value, run = defaultRunner) {
+function storeKeychain(service, value, run = defaultRunner) {
   if (/[\n\r]/.test(value))
     throw new ValidationError("keychain: cannot store a value containing newlines");
   const account = userInfo().username;
@@ -124,7 +124,7 @@ function validateDest(dest, names) {
 function dispatchStore(name, dest, value) {
   if (dest === "keychain" || dest.startsWith("keychain:")) {
     const service = keychainService(name, dest);
-    return { label: `keychain:${service}`, retrieve: storeKeychain(name, service, value) };
+    return { label: `keychain:${service}`, retrieve: storeKeychain(service, value) };
   }
   if (dest.startsWith("file:"))
     return { label: dest, retrieve: storeFile(dest.slice(5), value) };
@@ -153,6 +153,7 @@ var package_default = {
     build: 'bun build src/cli-entry.ts --target node --outfile bin/keyhole --banner "#!/usr/bin/env node" && chmod +x bin/keyhole',
     prepare: "git config core.hooksPath .githooks",
     prepublishOnly: "bun run build",
+    release: "sh scripts/release.sh",
     test: "vitest run",
     format: "prettier --write .",
     "format:check": "prettier --check ."

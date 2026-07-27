@@ -29,12 +29,7 @@ const defaultRunner: Runner = (cmd, args, stdin) => {
   return { status: r.status, stderr: r.stderr ?? "" }
 }
 
-export function storeKeychain(
-  name: string,
-  service: string,
-  value: string,
-  run: Runner = defaultRunner,
-): string {
+export function storeKeychain(service: string, value: string, run: Runner = defaultRunner): string {
   if (/[\n\r]/.test(value))
     throw new ValidationError("keychain: cannot store a value containing newlines")
   const account = userInfo().username
@@ -153,7 +148,7 @@ export function validateDest(dest: string, names: string[]): void {
 export function dispatchStore(name: string, dest: string, value: string): StoreResult {
   if (dest === "keychain" || dest.startsWith("keychain:")) {
     const service = keychainService(name, dest)
-    return { label: `keychain:${service}`, retrieve: storeKeychain(name, service, value) }
+    return { label: `keychain:${service}`, retrieve: storeKeychain(service, value) }
   }
   if (dest.startsWith("file:")) return { label: dest, retrieve: storeFile(dest.slice(5), value) }
   if (dest.startsWith("env:"))

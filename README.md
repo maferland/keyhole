@@ -144,7 +144,7 @@ keyhole OPENAI_API_KEY --context 'ingest script' --receipt .keyhole/receipt.json
 ```json
 {
   "schema": "keyhole.secret_reference_receipt.v1",
-  "keyhole": "0.6.0",
+  "keyhole": "0.8.0",
   "request_id": "9f3c1e7a52b04d18",
   "created_at": "2026-07-27T18:04:11.402Z",
   "context": "ingest script",

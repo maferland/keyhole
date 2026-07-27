@@ -9,7 +9,9 @@
     "strict": true,
     "skipLibCheck": true,
     "types": ["node"],
-    "lib": ["ESNext"]
+    "lib": ["ESNext"],
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
   },
   "include": ["src", "tests", "bin"]
 }
