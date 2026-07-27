@@ -10,11 +10,10 @@ export interface Stored {
   retrieve: string
 }
 
-export interface Result {
-  stored?: boolean
-  secrets?: Stored[]
-  error?: string
-}
+export type Result =
+  | { status: "stored"; secrets: Stored[] }
+  | { status: "failed"; error: string }
+  | { status: "timeout" }
 
 export interface SessionOpts {
   names: string[]
@@ -23,18 +22,20 @@ export interface SessionOpts {
   port?: number
 }
 
+const MAX_BODY = 64 * 1024
+
 export class CaptureSession {
   readonly token = "/" + randomBytes(18).toString("base64url")
-  readonly result: Result = {}
   readonly done: Promise<Result>
 
-  private settled = false
+  private outcome: Result | null = null
+  private readonly nonce = randomBytes(16).toString("base64")
   private readonly page: string
   private readonly server: Server
   private resolveDone!: (r: Result) => void
 
   constructor(private readonly opts: SessionOpts) {
-    this.page = buildPage(opts.names, opts.context ?? "", opts.dest, this.token)
+    this.page = buildPage(opts.names, opts.context ?? "", opts.dest, this.token, this.nonce)
     this.done = new Promise((resolve) => (this.resolveDone = resolve))
     this.server = createServer((req, res) => this.handle(req, res))
   }
@@ -55,6 +56,10 @@ export class CaptureSession {
     return `http://127.0.0.1:${this.port}${this.token}`
   }
 
+  get result(): Result {
+    return this.outcome ?? { status: "timeout" }
+  }
+
   async wait(timeoutMs: number): Promise<Result> {
     const timeout = new Promise<Result>((resolve) =>
       setTimeout(() => resolve(this.result), timeoutMs),
@@ -66,6 +71,25 @@ export class CaptureSession {
     this.server.close()
   }
 
+  // Single-use: the first settle wins and every later submit gets a 409.
+  private settle(result: Result): void {
+    if (this.outcome) return
+    this.outcome = result
+    this.resolveDone(result)
+  }
+
+  private get csp(): string {
+    return [
+      "default-src 'none'",
+      `script-src 'nonce-${this.nonce}'`,
+      `style-src 'nonce-${this.nonce}' https://fonts.googleapis.com`,
+      "font-src https://fonts.gstatic.com",
+      "connect-src 'self'",
+      "form-action 'none'",
+      "base-uri 'none'",
+    ].join("; ")
+  }
+
   // Host pinned to loopback:port makes the Origin check meaningful and kills DNS-rebinding.
   private loopback(scheme = ""): string[] {
     return [`${scheme}127.0.0.1:${this.port}`, `${scheme}localhost:${this.port}`]
@@ -75,7 +99,13 @@ export class CaptureSession {
     const path = req.url ?? ""
     if (req.method === "GET") {
       if (path !== this.token) return reply(res, 404)
-      res.writeHead(200, { "content-type": "text/html; charset=utf-8" })
+      res.writeHead(200, {
+        "content-type": "text/html; charset=utf-8",
+        "content-security-policy": this.csp,
+        "cache-control": "no-store",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+      })
       res.end(this.page)
       return
     }
@@ -83,14 +113,15 @@ export class CaptureSession {
     if (!this.loopback().includes(req.headers.host ?? "")) return reply(res, 403)
     const origin = req.headers.origin
     if (origin && !this.loopback("http://").includes(origin)) return reply(res, 403)
-    if (this.settled) return reply(res, 409, "already stored")
+    if (this.outcome) return reply(res, 409, "already stored")
     if (req.headers["content-length"] == null) return reply(res, 411, "length required")
 
     let values: Record<string, string>
     try {
       values = (JSON.parse(await readBody(req)).secrets as Record<string, string>) ?? {}
-    } catch {
-      return reply(res, 400, "bad body")
+    } catch (e) {
+      const tooLarge = e instanceof BodyTooLarge
+      return reply(res, tooLarge ? 413 : 400, tooLarge ? "too large" : "bad body")
     }
     for (const name of this.opts.names) {
       if (!values[name]) return reply(res, 400, `empty value for ${name}`)
@@ -100,20 +131,17 @@ export class CaptureSession {
         const { label, retrieve } = dispatchStore(name, this.opts.dest, values[name])
         return { name, dest: label, retrieve }
       })
-      this.settled = true
-      this.result.stored = true
-      this.result.secrets = secrets
-      this.resolveDone(this.result)
+      this.settle({ status: "stored", secrets })
       reply(res, 200, "ok")
     } catch (e) {
       if (e instanceof ValidationError) return reply(res, 400, e.message) // retryable
-      this.result.error = (e as Error).message
-      this.settled = true
-      this.resolveDone(this.result)
+      this.settle({ status: "failed", error: (e as Error).message })
       reply(res, 500, "store error")
     }
   }
 }
+
+class BodyTooLarge extends Error {}
 
 function reply(res: ServerResponse, code: number, body = ""): void {
   res.writeHead(code)
@@ -123,7 +151,10 @@ function reply(res: ServerResponse, code: number, body = ""): void {
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     let data = ""
-    req.on("data", (chunk) => (data += chunk))
+    req.on("data", (chunk) => {
+      data += chunk
+      if (data.length > MAX_BODY) reject(new BodyTooLarge())
+    })
     req.on("end", () => resolve(data))
     req.on("error", reject)
   })

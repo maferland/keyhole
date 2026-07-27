@@ -1,5 +1,3 @@
-import pkg from "../package.json" with { type: "json" }
-
 function esc(s: string): string {
   return s
     .replaceAll("&", "&amp;")
@@ -8,13 +6,19 @@ function esc(s: string): string {
     .replaceAll('"', "&quot;")
 }
 
+// One pass, so a slot value can never be re-scanned as a placeholder by a later pass.
+// Unknown keys are left verbatim: the page's own script contains literal `{secrets}`.
+function render(template: string, slots: Record<string, string>): string {
+  return template.replace(/\{(\w+)\}/g, (match, key: string) => (key in slots ? slots[key] : match))
+}
+
 const TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1">
 <title>keyhole · {title}</title>
 <link rel=preconnect href="https://fonts.googleapis.com">
 <link rel=preconnect href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel=stylesheet>
-<style>
+<style nonce="{nonce}">
  :root{
    --bg:#0a0e0c;--sf:#0e1411;--si:#070b09;--tb:#0a100d;--sp:#0f1512;
    --ac:#b48cff;--tx:#e8f0ea;--tb2:#aeb9b1;--mu:#a0aca5;--di:#96a49c;
@@ -91,8 +95,6 @@ const TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
  button.go:hover{box-shadow:0 12px 32px color-mix(in srgb,var(--ac) 42%,transparent);
    filter:brightness(1.07)}
  .cap{text-align:center;font-size:10.5px;color:var(--fa);margin-top:14px}
- .upd{display:none;text-align:center;font-size:10px;color:var(--la);margin-top:8px}
- .upd a{color:var(--ac);text-decoration:none}
  /* submitting state */
  .card.busy .form{opacity:.7;pointer-events:none}
  .card.busy input{border-color:rgba(255,255,255,.06)}
@@ -149,18 +151,18 @@ const TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
     <div class=err id=err><span class=bang>!</span><span class=txt id=errtxt></span></div>
     <button class=go id=go>{button}</button>
     <div class=cap>localhost only · single-use · value never leaves this machine</div>
-    <div class=upd id=upd></div>
    </div>
   </div>
  </div>
 </div>
-<script>
+<script nonce="{nonce}">
  const card=document.getElementById('card'),body=document.getElementById('body'),
        go=document.getElementById('go'),errtxt=document.getElementById('errtxt'),
        fields=[...document.querySelectorAll('input[data-name]')],
        destNote=document.getElementById('dest-note'),
        dest={destJson},multi=fields.length>1;
  const DEST_DESC={'keychain':'encrypted at rest · macOS Keychain','file':'raw value on disk · mode 0600','env':'NAME=value lines · mode 0600'};
+ const hx=s=>String(s).replace(/[&<>]/g,c=>c==='&'?'&amp;':c==='<'?'&lt;':'&gt;');
  function getDestBase(d){return d.split(':')[0];}
  function updateDestNote(d){if(destNote)destNote.textContent=DEST_DESC[getDestBase(d)]||'';}
  updateDestNote(dest);
@@ -180,9 +182,9 @@ const TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
    const heading=multi?fields.length+' secrets stored.':'Secret stored.';
    const name=!multi&&fields[0]?fields[0].dataset.name:'';
    const fullDest=dest==='keychain'&&name?'keychain:'+name:dest;
-   const keys=multi?'<div class=keys>'+fields.map(f=>'<span class=ac>'+f.dataset.name+'</span>').join('<br>')+'</div>':'';
+   const keys=multi?'<div class=keys>'+fields.map(f=>'<span class=ac>'+hx(f.dataset.name)+'</span>').join('<br>')+'</div>':'';
    dead('ok','✓',heading,
-     '<code class=destpath>'+fullDest+'</code>Your agent is unblocked and running.'+keys,
+     '<code class=destpath>'+hx(fullDest)+'</code>Your agent is unblocked and running.'+keys,
      'The value never entered the agent\\'s context. You can close this tab.');
  }
  function already(){
@@ -226,21 +228,18 @@ const TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
    inp.focus();});
  fields.forEach(f=>f.addEventListener('keydown',e=>{
    if(e.key==='Enter'){e.preventDefault();send();}}));
- (async()=>{try{
-   const d=await(await fetch('https://registry.npmjs.org/{pkg}/latest',
-     {signal:AbortSignal.timeout(4000)})).json();
-   const el=document.getElementById('upd');
-   if(el&&d.version&&d.version!=='{version}'){
-     el.style.display='block';
-     el.innerHTML='update available: <a href="https://github.com/maferland/keyhole/releases" target="_blank">'+d.version+'</a>';
-   }
- }catch(e){}})();
 </script></body></html>`
 
-const EYE_SVG = `<svg width=15 height=15 viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx=12 cy=12 r=3/></svg>`
+const EYE_SVG = `<svg width=15 height=15 viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx=12 cy=12 r="3"/></svg>`
 const EYE_OFF_SVG = `<svg width=15 height=15 viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20C5.5 20 2 13 2 13a18.4 18.4 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19M6.1 6.1l11.8 11.8"/><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/></svg>`
 
-export function buildPage(names: string[], context: string, dest: string, token: string): string {
+export function buildPage(
+  names: string[],
+  context: string,
+  dest: string,
+  token: string,
+  nonce: string,
+): string {
   const multi = names.length > 1
   const title = multi ? `Your agent needs ${names.length} secrets` : "Your agent needs a secret"
 
@@ -267,28 +266,26 @@ export function buildPage(names: string[], context: string, dest: string, token:
     )
     .join("\n     ")
 
-  const url = `127.0.0.1/s/${esc(token)}`
-
-  return TEMPLATE.replaceAll("{title}", esc(title))
-    .replaceAll("{url}", url)
-    .replaceAll("{ctxchip}", ctxchip)
-    .replaceAll("{fields}", fields)
-    .replaceAll("{button}", multi ? "Store all →" : "Store →")
-    .replaceAll("{kc}", initialChip === "keychain" ? " on" : "")
-    .replaceAll("{fl}", initialChip === "file" ? " on" : "")
-    .replaceAll("{en}", initialChip === "env" ? " on" : "")
-    .replaceAll("{fdis}", multi ? " dis" : "")
-    .replaceAll("{ftitle}", multi ? ' title="file: supports one secret only"' : "")
-    .replaceAll(
-      "{filehint}",
-      multi
-        ? "<div class=dest-hint>file stores a single value — use env or keychain for multiple secrets</div>"
-        : "",
-    )
-    .replaceAll("{eyeIcon}", EYE_SVG)
-    .replaceAll("{eyeOffIcon}", EYE_OFF_SVG)
-    .replaceAll("{destJson}", JSON.stringify(esc(dest)))
-    .replaceAll("{pkg}", pkg.name)
-    .replaceAll("{version}", pkg.version)
-    .replaceAll("{token}", token)
+  // Values are escaped here, at the point they enter the template, per their sink:
+  // esc() for HTML text, JSON.stringify() for the JS string literal.
+  return render(TEMPLATE, {
+    title: esc(title),
+    url: `127.0.0.1/s${esc(token)}`, // token carries its own leading slash
+    ctxchip,
+    fields,
+    button: multi ? "Store all →" : "Store →",
+    kc: initialChip === "keychain" ? " on" : "",
+    fl: initialChip === "file" ? " on" : "",
+    en: initialChip === "env" ? " on" : "",
+    fdis: multi ? " dis" : "",
+    ftitle: multi ? ' title="file: supports one secret only"' : "",
+    filehint: multi
+      ? "<div class=dest-hint>file stores a single value — use env or keychain for multiple secrets</div>"
+      : "",
+    eyeIcon: EYE_SVG,
+    eyeOffIcon: EYE_OFF_SVG,
+    destJson: JSON.stringify(dest),
+    nonce: esc(nonce),
+    token, // base64url + leading slash, so safe in both the HTML and JS-string sinks
+  })
 }

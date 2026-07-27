@@ -1,15 +1,14 @@
-import { mkdtempSync, readFileSync, symlinkSync } from "node:fs"
+import { readFileSync, symlinkSync } from "node:fs"
 import { connect } from "node:net"
-import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 import { afterEach, describe, expect, it } from "vitest"
 
-import { exitCode, parseArgs } from "../src/cli.ts"
+import { exitCode } from "../src/cli.ts"
 import { CaptureSession } from "../src/server.ts"
+import { tmp } from "./helpers.ts"
 
 const SECRET = "topsecret-do-not-leak-xyz"
-const tmp = () => mkdtempSync(join(tmpdir(), "getsecret-"))
 
 let open: CaptureSession[] = []
 afterEach(() => {
@@ -32,7 +31,13 @@ interface RawOpts {
   sendLength?: boolean
 }
 
-function raw(port: number, opts: RawOpts): Promise<{ status: number; body: string }> {
+interface RawReply {
+  status: number
+  head: string
+  body: string
+}
+
+function raw(port: number, opts: RawOpts): Promise<RawReply> {
   const { method = "GET", path, origin, body, sendLength = true } = opts
   const host = opts.host ?? `127.0.0.1:${port}`
   const lines = [`${method} ${path} HTTP/1.1`, `Host: ${host}`, "Connection: close"]
@@ -49,6 +54,7 @@ function raw(port: number, opts: RawOpts): Promise<{ status: number; body: strin
     sock.on("end", () => {
       resolve({
         status: Number(data.split(" ")[1]),
+        head: data.split("\r\n\r\n")[0],
         body: data.split("\r\n\r\n").slice(1).join("\r\n\r\n"),
       })
     })
@@ -91,7 +97,7 @@ describe("POST guards", () => {
     const s = await start(["API_KEY"], `file:${join(tmp(), "o")}`)
     const r = await submit(s, { API_KEY: SECRET }, { host: "evil.example:1234" })
     expect(r.status).toBe(403)
-    expect(s.result.stored).toBeUndefined()
+    expect(s.result.status).toBe("timeout")
   })
 
   it("rejects a foreign Origin", async () => {
@@ -133,8 +139,10 @@ describe("store + single-use", () => {
     const r = await submit(s, { API_KEY: SECRET })
     expect(r.status).toBe(200)
     const result = await s.wait(0)
-    expect(result.stored).toBe(true)
-    expect(result.secrets?.[0]).toMatchObject({ name: "API_KEY", dest: `file:${p}` })
+    expect(result).toMatchObject({
+      status: "stored",
+      secrets: [{ name: "API_KEY", dest: `file:${p}` }],
+    })
     expect(readFileSync(p, "utf8")).toBe(SECRET)
     expect(JSON.stringify(result)).not.toContain(SECRET)
   })
@@ -153,7 +161,8 @@ describe("store + single-use", () => {
     const s = await start(["A_KEY", "B_KEY"], `env:${p}`)
     const r = await submit(s, { A_KEY: "aaa", B_KEY: "bbb" })
     expect(r.status).toBe(200)
-    expect(s.result.secrets).toHaveLength(2)
+    expect(s.result).toMatchObject({ status: "stored" })
+    expect(s.result.status === "stored" && s.result.secrets).toHaveLength(2)
     const env = readFileSync(p, "utf8")
     expect(env).toContain("A_KEY=aaa")
     expect(env).toContain("B_KEY=bbb")
@@ -168,40 +177,47 @@ describe("failure paths", () => {
     const r = await submit(s, { API_KEY: SECRET })
     expect(r.status).toBe(500)
     expect(r.body).toContain("store error")
-    expect(s.result.error).toBeDefined()
-    expect(s.result.error).not.toContain(SECRET)
+    expect(s.result.status).toBe("failed")
+    expect(JSON.stringify(s.result)).not.toContain(SECRET)
     expect(exitCode(s.result)).toBe(3)
   })
 
   it("400s a validation failure and stays open for retry", async () => {
     const s = await start(["API_KEY"], `env:${join(tmp(), "a.env")}`)
     expect((await submit(s, { API_KEY: "line1\nINJECTED=1" })).status).toBe(400)
-    expect(s.result.stored).toBeUndefined()
+    expect(s.result.status).toBe("timeout")
     expect((await submit(s, { API_KEY: "clean" })).status).toBe(200)
   })
 })
 
-describe("cli", () => {
-  it("parses names, dest and options", () => {
-    const a = parseArgs(["A", "B", "--dest", "env:/x", "--timeout", "30"])
-    expect(a.names).toEqual(["A", "B"])
-    expect(a.dest).toBe("env:/x")
-    expect(a.timeout).toBe(30)
+describe("response hardening", () => {
+  it("locks the page down with a CSP whose nonce matches the inline blocks", async () => {
+    const s = await start(["API_KEY"], `file:${join(tmp(), "o")}`)
+    const r = await raw(s.port, { path: s.token })
+    expect(r.head).toContain("default-src 'none'")
+    expect(r.head).toContain("connect-src 'self'")
+    expect(r.head).toContain("cache-control: no-store")
+    expect(r.head).toContain("referrer-policy: no-referrer")
+    const nonce = r.head.match(/script-src 'nonce-([^']+)'/)?.[1]
+    expect(nonce).toBeTruthy()
+    expect(r.body).toContain(`<script nonce="${nonce}">`)
+    expect(r.body).toContain(`<style nonce="${nonce}">`)
   })
 
-  it("rejects file: with multiple secrets", () => {
-    expect(() => parseArgs(["A", "B", "--dest", "file:/x"])).toThrow()
+  it("gives each session a fresh nonce", async () => {
+    const dest = `file:${join(tmp(), "o")}`
+    const heads = await Promise.all(
+      [await start(["A"], dest), await start(["A"], dest)].map((s) =>
+        raw(s.port, { path: s.token }).then((r) => r.head),
+      ),
+    )
+    expect(heads[0]).not.toBe(heads[1])
   })
 
-  it("requires at least one name", () => {
-    expect(() => parseArgs(["--dest", "keychain"])).toThrow()
-  })
-
-  it.each([
-    [{ stored: true }, 0],
-    [{ error: "boom" }, 3],
-    [{}, 2],
-  ])("maps result %j to exit %i", (result, code) => {
-    expect(exitCode(result)).toBe(code)
+  it("413s a body over the size cap instead of buffering it", async () => {
+    const s = await start(["API_KEY"], `file:${join(tmp(), "o")}`)
+    const r = await submit(s, { API_KEY: "x".repeat(70 * 1024) })
+    expect(r.status).toBe(413)
+    expect(s.result.status).toBe("timeout")
   })
 })
