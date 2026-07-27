@@ -11,15 +11,18 @@ only references. Ships as a Claude Code plugin (skill + command wrapper).
 - `src/server.ts` — `CaptureSession`: node:http server, request guards, single-use
 - `src/cli.ts` — `parseArgs`, `exitCode`, `main` (argv → session → browser)
 - `src/cli-entry.ts` — runs `main()` then exits; the build entry point
+- `src/receipt.ts` — `buildReceipt`/`writeReceipt` for `--receipt` (never sees a value)
 - `bin/keyhole` — committed node bundle built from `src/` (`bun run build`). The
   npm `bin`, the plugin entry, and the local CLI all use it. Runs on plain node.
 - `skills/` + `commands/` — Claude Code plugin surface
-- `tests/` — vitest: `stores.test.ts` (unit), `server.test.ts` (in-process integration)
+- `tests/` — vitest. `stores`/`page`/`receipt`/`cli` are unit; `server` drives
+  `CaptureSession` over a raw socket; `main` drives the whole CLI in-process
 
 Consumers only need **node** — `bin/keyhole` is a built bundle, so the npm CLI,
 the Claude/Codex plugin, and `npx keyhole` all run without Bun. Bun is only for
 dev/build/test. **Rebuild `bin/keyhole` after editing `src/`** (`bun run build`);
-CI builds it too. Published from CI on a `v*` tag with npm provenance.
+CI rebuilds it and fails if the committed bundle differs. Published from CI on a
+`v*` tag with npm provenance.
 
 ## Run
 
