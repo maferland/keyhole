@@ -8,9 +8,14 @@ import pkg from "../package.json" with { type: "json" }
 const CURRENT_VERSION = pkg.version
 const PKG = pkg.name
 
+// The only network call keyhole makes, and it fires while someone is typing a secret, so
+// it has to be refusable. The plugin updates via `claude plugin update` instead.
+export function updateCheckDisabled(): boolean {
+  return Boolean(process.env.CLAUDE_PLUGIN_ROOT || process.env.KEYHOLE_NO_UPDATE_CHECK)
+}
+
 function checkUpdate(): void {
-  // Plugin path has `claude plugin update` — no need to nudge
-  if (process.env.CLAUDE_PLUGIN_ROOT) return
+  if (updateCheckDisabled()) return
   fetch(`https://registry.npmjs.org/${PKG}/latest`, {
     signal: AbortSignal.timeout(3000),
   })
@@ -53,7 +58,8 @@ under which keyhole version. It never contains a secret value, and is written on
 after a successful store. stdout is unchanged either way.
 
 exit: 0 stored · 2 timed out or bad usage · 3 store failure
-env:  BROWSER=true prints the URL without opening a browser`
+env:  BROWSER=true               print the URL without opening a browser
+      KEYHOLE_NO_UPDATE_CHECK=1  skip the npm version check, keyhole's only egress`
 
 function value(argv: string[], i: number, flag: string): string {
   const v = argv[i]

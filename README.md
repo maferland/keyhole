@@ -45,9 +45,17 @@ claude plugin update keyhole            # Claude Code plugin
 npm install -g @maferland/keyhole       # global npm install (npx is always latest)
 ```
 
-The CLI prints a one-line notice on stderr when a newer npm version exists. The
-capture form itself makes no network requests. Plugin installs update only via
-`claude plugin update`.
+The CLI prints a one-line notice on stderr when a newer npm version exists. Plugin
+installs update only via `claude plugin update`.
+
+That check is the only network request the CLI process makes, and it fires while you
+are typing a secret, so it is refusable:
+
+```bash
+KEYHOLE_NO_UPDATE_CHECK=1 keyhole OPENAI_API_KEY
+```
+
+It is skipped automatically under the Claude Code plugin.
 
 ### Other agents (Codex, etc.)
 

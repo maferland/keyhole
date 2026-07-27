@@ -607,8 +607,11 @@ function readBody(req) {
 // src/cli.ts
 var CURRENT_VERSION = package_default.version;
 var PKG = package_default.name;
+function updateCheckDisabled() {
+  return Boolean(process.env.CLAUDE_PLUGIN_ROOT || process.env.KEYHOLE_NO_UPDATE_CHECK);
+}
 function checkUpdate() {
-  if (process.env.CLAUDE_PLUGIN_ROOT)
+  if (updateCheckDisabled())
     return;
   fetch(`https://registry.npmjs.org/${PKG}/latest`, {
     signal: AbortSignal.timeout(3000)
@@ -638,7 +641,8 @@ under which keyhole version. It never contains a secret value, and is written on
 after a successful store. stdout is unchanged either way.
 
 exit: 0 stored · 2 timed out or bad usage · 3 store failure
-env:  BROWSER=true prints the URL without opening a browser`;
+env:  BROWSER=true               print the URL without opening a browser
+      KEYHOLE_NO_UPDATE_CHECK=1  skip the npm version check, keyhole's only egress`;
 function value(argv, i, flag) {
   const v = argv[i];
   if (v === undefined)
