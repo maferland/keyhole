@@ -76,17 +76,40 @@ describe("storeEnv", () => {
 })
 
 describe("storeKeychain", () => {
-  it("builds the security argv and returns a find hint", () => {
-    let seen: string[] = []
-    const run = (_cmd: string, args: string[]) => {
-      seen = args
+  const spy = () => {
+    const calls: { args: string[]; stdin: string }[] = []
+    const run = (_cmd: string, args: string[], stdin: string) => {
+      calls.push({ args, stdin })
       return { status: 0, stderr: "" }
     }
+    return { calls, run }
+  }
+
+  it("builds the security argv and returns a find hint", () => {
+    const { calls, run } = spy()
     const hint = storeKeychain("API_KEY", "my-svc", SECRET, run)
-    expect(seen.slice(0, 3)).toEqual(["add-generic-password", "-U", "-a"])
-    expect(seen).toContain("my-svc")
-    expect(seen).toContain(SECRET)
+    expect(calls[0].args.slice(0, 3)).toEqual(["add-generic-password", "-U", "-a"])
+    expect(calls[0].args).toContain("my-svc")
     expect(hint).toContain("find-generic-password -s my-svc")
+  })
+
+  // argv is world-readable per-user via ps, so the value goes down stdin instead. The
+  // duplicate line answers the "retype password" prompt.
+  it("passes the value on stdin and never in argv", () => {
+    const { calls, run } = spy()
+    storeKeychain("API_KEY", "my-svc", SECRET, run)
+    expect(calls[0].args).not.toContain(SECRET)
+    expect(calls[0].args.join(" ")).not.toContain(SECRET)
+    expect(calls[0].args.at(-1)).toBe("-w")
+    expect(calls[0].stdin).toBe(`${SECRET}\n${SECRET}\n`)
+  })
+
+  // Reading from a prompt is line-based, so a multi-line value would be truncated.
+  // Refused up front rather than silently stored wrong. file: takes PEMs fine.
+  it.each(["a\nb", "a\r\nb", "trailing\n"])("refuses the multi-line value %j", (value) => {
+    const { calls, run } = spy()
+    expect(() => storeKeychain("A", "s", value, run)).toThrow(ValidationError)
+    expect(calls).toHaveLength(0)
   })
 
   it("throws when security exits non-zero", () => {

@@ -200,8 +200,11 @@ keyhole automatically whenever it would otherwise ask you to paste a secret.
 - keyhole keeps the value out of the agent's context. It is not at-rest
   encryption. `file:`/`env:` destinations are plaintext on disk (mode `0600`);
   `keychain` is encrypted at rest.
-- The `keychain` destination passes the value on `argv`, briefly visible to `ps`
-  on a multi-user machine. On a shared box prefer `file:` or `env:`.
+- No destination puts the value on a command line. `keychain` feeds it to
+  `security` over stdin, so `ps` never shows it.
+- `keychain` therefore cannot store a multi-line value, since `security` reads it
+  from a line-based prompt. Use `file:` for a PEM key or anything else with
+  newlines in it.
 
 ## Develop
 

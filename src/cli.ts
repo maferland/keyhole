@@ -46,7 +46,7 @@ Capture one or more secrets via a localhost form. The values reach the store by
 reference and never touch stdout. Pass several names for a multi-field form.
 
 DEST (default: keychain):
-  keychain[:service]   macOS Keychain generic password (account = $USER)
+  keychain[:service]   macOS Keychain generic password (account = $USER, no newlines)
   file:/path           write the raw secret to /path with 0600 perms (single secret)
   env:/path            append/replace NAME=value lines in an env file (0600)
 
