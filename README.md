@@ -4,7 +4,7 @@
 
 Stop pasting secrets into your agent.
 
-![keyhole localhost form](https://raw.githubusercontent.com/maferland/keyhole/main/assets/form.png)
+![keyhole localhost form](https://raw.githubusercontent.com/maferland/keyhole/main/assets/form-v2.png)
 
 ---
 
