@@ -6,61 +6,13 @@ import { spawn } from "node:child_process";
 // src/server.ts
 import { randomBytes } from "node:crypto";
 import { createServer } from "node:http";
-// package.json
-var package_default = {
-  name: "@maferland/keyhole",
-  version: "0.4.0",
-  publishConfig: {
-    access: "public"
-  },
-  description: "Hand a secret to your AI coding agent through a localhost form — the value reaches a store by reference and never enters the chat context",
-  type: "module",
-  bin: {
-    keyhole: "bin/keyhole"
-  },
-  files: [
-    "bin/keyhole",
-    "README.md",
-    "LICENSE"
-  ],
-  scripts: {
-    build: 'bun build src/cli-entry.ts --target node --outfile bin/keyhole --banner "#!/usr/bin/env node" && chmod +x bin/keyhole',
-    prepare: "git config core.hooksPath .githooks",
-    prepublishOnly: "bun run build",
-    test: "vitest run",
-    format: "prettier --write .",
-    "format:check": "prettier --check ."
-  },
-  keywords: [
-    "secret",
-    "credential",
-    "api-key",
-    "keychain",
-    "security",
-    "localhost",
-    "claude"
-  ],
-  homepage: "https://github.com/maferland/keyhole",
-  repository: "https://github.com/maferland/keyhole",
-  license: "MIT",
-  author: {
-    name: "Marc-Antoine Ferland",
-    email: "maferland@users.noreply.github.com"
-  },
-  engines: {
-    node: ">=18"
-  },
-  devDependencies: {
-    "@types/node": "^22.10.0",
-    prettier: "^3.4.0",
-    typescript: "^5.7.0",
-    vitest: "^2.1.0"
-  }
-};
 
 // src/page.ts
 function esc(s) {
   return s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+}
+function render(template, slots) {
+  return template.replace(/\{(\w+)\}/g, (match, key) => (key in slots) ? slots[key] : match);
 }
 var TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1">
@@ -68,7 +20,7 @@ var TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
 <link rel=preconnect href="https://fonts.googleapis.com">
 <link rel=preconnect href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel=stylesheet>
-<style>
+<style nonce="{nonce}">
  :root{
    --bg:#0a0e0c;--sf:#0e1411;--si:#070b09;--tb:#0a100d;--sp:#0f1512;
    --ac:#b48cff;--tx:#e8f0ea;--tb2:#aeb9b1;--mu:#a0aca5;--di:#96a49c;
@@ -106,10 +58,10 @@ var TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
  .logo-row{margin-bottom:18px}
  .logo-row.center{justify-content:center;margin-bottom:20px}
  .title{font-size:14.5px;font-weight:700;color:var(--tx);margin:0 0 14px;line-height:1.4}
- .chip-ctx{display:inline-block;background:color-mix(in srgb,var(--ac) 8%,transparent);
+ .chip-ctx{display:block;background:color-mix(in srgb,var(--ac) 8%,transparent);
    border:1px solid color-mix(in srgb,var(--ac) 24%,transparent);color:var(--so);
-   font-size:11px;border-radius:6px;padding:3px 8px;margin:0 0 18px;max-width:100%;
-   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+   font-size:11px;line-height:1.6;border-radius:6px;padding:7px 9px;margin:0 0 18px;
+   overflow-wrap:break-word}
  .fields{display:flex;flex-direction:column;gap:16px;margin-bottom:18px}
  .field label{display:block;font-size:11px;color:var(--la);letter-spacing:.1em;
    text-transform:uppercase;margin:0 0 7px}
@@ -145,8 +97,6 @@ var TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
  button.go:hover{box-shadow:0 12px 32px color-mix(in srgb,var(--ac) 42%,transparent);
    filter:brightness(1.07)}
  .cap{text-align:center;font-size:10.5px;color:var(--fa);margin-top:14px}
- .upd{display:none;text-align:center;font-size:10px;color:var(--la);margin-top:8px}
- .upd a{color:var(--ac);text-decoration:none}
  /* submitting state */
  .card.busy .form{opacity:.7;pointer-events:none}
  .card.busy input{border-color:rgba(255,255,255,.06)}
@@ -203,18 +153,18 @@ var TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
     <div class=err id=err><span class=bang>!</span><span class=txt id=errtxt></span></div>
     <button class=go id=go>{button}</button>
     <div class=cap>localhost only · single-use · value never leaves this machine</div>
-    <div class=upd id=upd></div>
    </div>
   </div>
  </div>
 </div>
-<script>
+<script nonce="{nonce}">
  const card=document.getElementById('card'),body=document.getElementById('body'),
        go=document.getElementById('go'),errtxt=document.getElementById('errtxt'),
        fields=[...document.querySelectorAll('input[data-name]')],
        destNote=document.getElementById('dest-note'),
        dest={destJson},multi=fields.length>1;
  const DEST_DESC={'keychain':'encrypted at rest · macOS Keychain','file':'raw value on disk · mode 0600','env':'NAME=value lines · mode 0600'};
+ const hx=s=>String(s).replace(/[&<>]/g,c=>c==='&'?'&amp;':c==='<'?'&lt;':'&gt;');
  function getDestBase(d){return d.split(':')[0];}
  function updateDestNote(d){if(destNote)destNote.textContent=DEST_DESC[getDestBase(d)]||'';}
  updateDestNote(dest);
@@ -234,9 +184,9 @@ var TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
    const heading=multi?fields.length+' secrets stored.':'Secret stored.';
    const name=!multi&&fields[0]?fields[0].dataset.name:'';
    const fullDest=dest==='keychain'&&name?'keychain:'+name:dest;
-   const keys=multi?'<div class=keys>'+fields.map(f=>'<span class=ac>'+f.dataset.name+'</span>').join('<br>')+'</div>':'';
+   const keys=multi?'<div class=keys>'+fields.map(f=>'<span class=ac>'+hx(f.dataset.name)+'</span>').join('<br>')+'</div>':'';
    dead('ok','✓',heading,
-     '<code class=destpath>'+fullDest+'</code>Your agent is unblocked and running.'+keys,
+     '<code class=destpath>'+hx(fullDest)+'</code>Your agent is unblocked and running.'+keys,
      'The value never entered the agent\\'s context. You can close this tab.');
  }
  function already(){
@@ -280,23 +230,14 @@ var TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
    inp.focus();});
  fields.forEach(f=>f.addEventListener('keydown',e=>{
    if(e.key==='Enter'){e.preventDefault();send();}}));
- (async()=>{try{
-   const d=await(await fetch('https://registry.npmjs.org/{pkg}/latest',
-     {signal:AbortSignal.timeout(4000)})).json();
-   const el=document.getElementById('upd');
-   if(el&&d.version&&d.version!=='{version}'){
-     el.style.display='block';
-     el.innerHTML='update available: <a href="https://github.com/maferland/keyhole/releases" target="_blank">'+d.version+'</a>';
-   }
- }catch(e){}})();
 </script></body></html>`;
-var EYE_SVG = `<svg width=15 height=15 viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx=12 cy=12 r=3/></svg>`;
+var EYE_SVG = `<svg width=15 height=15 viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx=12 cy=12 r="3"/></svg>`;
 var EYE_OFF_SVG = `<svg width=15 height=15 viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20C5.5 20 2 13 2 13a18.4 18.4 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19M6.1 6.1l11.8 11.8"/><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/></svg>`;
-function buildPage(names, context, dest, token) {
+function buildPage(names, context, dest, token, nonce) {
   const multi = names.length > 1;
   const title = multi ? `Your agent needs ${names.length} secrets` : "Your agent needs a secret";
   const initialChip = dest.startsWith("file:") ? "file" : dest.startsWith("env:") ? "env" : "keychain";
-  const ctxchip = context ? `<div class=chip-ctx title="${esc(context)}">${esc(context)}</div>` : "";
+  const ctxchip = context ? `<div class=chip-ctx>${esc(context)}</div>` : "";
   const fields = names.map((name, i) => `<div class=field>
      <label for="s${i}">${esc(name)}</label>
      <div class=in>
@@ -307,8 +248,24 @@ function buildPage(names, context, dest, token) {
      </div>
     </div>`).join(`
      `);
-  const url = `127.0.0.1/s/${esc(token)}`;
-  return TEMPLATE.replaceAll("{title}", esc(title)).replaceAll("{url}", url).replaceAll("{ctxchip}", ctxchip).replaceAll("{fields}", fields).replaceAll("{button}", multi ? "Store all →" : "Store →").replaceAll("{kc}", initialChip === "keychain" ? " on" : "").replaceAll("{fl}", initialChip === "file" ? " on" : "").replaceAll("{en}", initialChip === "env" ? " on" : "").replaceAll("{fdis}", multi ? " dis" : "").replaceAll("{ftitle}", multi ? ' title="file: supports one secret only"' : "").replaceAll("{filehint}", multi ? "<div class=dest-hint>file stores a single value — use env or keychain for multiple secrets</div>" : "").replaceAll("{eyeIcon}", EYE_SVG).replaceAll("{eyeOffIcon}", EYE_OFF_SVG).replaceAll("{destJson}", JSON.stringify(esc(dest))).replaceAll("{pkg}", package_default.name).replaceAll("{version}", package_default.version).replaceAll("{token}", token);
+  return render(TEMPLATE, {
+    title: esc(title),
+    url: `127.0.0.1/s${esc(token)}`,
+    ctxchip,
+    fields,
+    button: multi ? "Store all →" : "Store →",
+    kc: initialChip === "keychain" ? " on" : "",
+    fl: initialChip === "file" ? " on" : "",
+    en: initialChip === "env" ? " on" : "",
+    fdis: multi ? " dis" : "",
+    ftitle: multi ? ' title="file: supports one secret only"' : "",
+    filehint: multi ? "<div class=dest-hint>file stores a single value — use env or keychain for multiple secrets</div>" : "",
+    eyeIcon: EYE_SVG,
+    eyeOffIcon: EYE_OFF_SVG,
+    destJson: JSON.stringify(dest),
+    nonce: esc(nonce),
+    token
+  });
 }
 
 // src/stores.ts
@@ -321,6 +278,7 @@ import {
   mkdirSync,
   openSync,
   readFileSync,
+  renameSync,
   writeSync
 } from "node:fs";
 import { homedir, userInfo } from "node:os";
@@ -352,17 +310,38 @@ function storeKeychain(name, service, value, run = defaultRunner) {
 function expandHome(path) {
   return path.startsWith("~/") ? homedir() + path.slice(1) : path;
 }
+function ensureParent(path) {
+  mkdirSync(dirname(path) || ".", { recursive: true, mode: 448 });
+}
 function open0600(path) {
   const fd = openSync(path, FS.O_WRONLY | FS.O_CREAT | FS.O_TRUNC | FS.O_NOFOLLOW, 384);
   fchmodSync(fd, 384);
   return fd;
 }
+function readNoFollow(path) {
+  const fd = openSync(path, FS.O_RDONLY | FS.O_NOFOLLOW);
+  try {
+    return readFileSync(fd, "utf8");
+  } finally {
+    closeSync(fd);
+  }
+}
+function writeFd(fd, data) {
+  try {
+    writeSync(fd, data);
+  } finally {
+    closeSync(fd);
+  }
+}
+function writeAtomic0600(path, data) {
+  const tmp = `${path}.keyhole-${process.pid}`;
+  writeFd(open0600(tmp), data);
+  renameSync(tmp, path);
+}
 function storeFile(path, value) {
   path = expandHome(path);
-  mkdirSync(dirname(path) || ".", { recursive: true });
-  const fd = open0600(path);
-  writeSync(fd, value);
-  closeSync(fd);
+  ensureParent(path);
+  writeFd(open0600(path), value);
   return path;
 }
 function storeEnv(name, path, value) {
@@ -371,22 +350,42 @@ function storeEnv(name, path, value) {
   if (/[\n\r]/.test(value))
     throw new ValidationError("env: cannot store a value containing newlines");
   path = expandHome(path);
-  mkdirSync(dirname(path) || ".", { recursive: true });
-  let existing = "";
-  if (existsSync(path)) {
-    existing = readFileSync(path, "utf8").split(`
+  ensureParent(path);
+  const kept = existsSync(path) ? readNoFollow(path).split(`
 `).filter(Boolean).filter((line) => line.split("=", 1)[0] !== name).map((line) => line + `
-`).join("");
-  }
-  const fd = open0600(path);
-  writeSync(fd, existing + `${name}=${value}
+`).join("") : "";
+  writeAtomic0600(path, kept + `${name}=${value}
 `);
-  closeSync(fd);
   return `set -a; source ${path}; set +a   # then \${${name}}`;
 }
 function keychainService(name, dest) {
   const idx = dest.indexOf(":");
   return idx === -1 ? name : dest.slice(idx + 1);
+}
+function validateDest(dest, names) {
+  if (dest === "keychain")
+    return;
+  if (dest.startsWith("keychain:")) {
+    if (!keychainService(names[0], dest))
+      throw new Error("keychain: empty service name");
+    return;
+  }
+  if (dest.startsWith("file:")) {
+    if (!dest.slice(5))
+      throw new Error("file: needs a path");
+    if (names.length > 1)
+      throw new Error("file: stores a single secret — use keychain (default) or env: for multiple");
+    return;
+  }
+  if (dest.startsWith("env:")) {
+    if (!dest.slice(4))
+      throw new Error("env: needs a path");
+    const bad = names.find((name) => !ENV_NAME.test(name));
+    if (bad)
+      throw new Error(`env: invalid variable name '${bad}'`);
+    return;
+  }
+  throw new Error(`unknown --dest: '${dest}'`);
 }
 function dispatchStore(name, dest, value) {
   if (dest === "keychain" || dest.startsWith("keychain:")) {
@@ -401,18 +400,20 @@ function dispatchStore(name, dest, value) {
 }
 
 // src/server.ts
+var MAX_BODY = 64 * 1024;
+
 class CaptureSession {
   opts;
   token = "/" + randomBytes(18).toString("base64url");
-  result = {};
   done;
-  settled = false;
+  outcome = null;
+  nonce = randomBytes(16).toString("base64");
   page;
   server;
   resolveDone;
   constructor(opts) {
     this.opts = opts;
-    this.page = buildPage(opts.names, opts.context ?? "", opts.dest, this.token);
+    this.page = buildPage(opts.names, opts.context ?? "", opts.dest, this.token, this.nonce);
     this.done = new Promise((resolve) => this.resolveDone = resolve);
     this.server = createServer((req, res) => this.handle(req, res));
   }
@@ -429,12 +430,32 @@ class CaptureSession {
   get url() {
     return `http://127.0.0.1:${this.port}${this.token}`;
   }
+  get result() {
+    return this.outcome ?? { status: "timeout" };
+  }
   async wait(timeoutMs) {
     const timeout = new Promise((resolve) => setTimeout(() => resolve(this.result), timeoutMs));
     return Promise.race([this.done, timeout]);
   }
   close() {
     this.server.close();
+  }
+  settle(result) {
+    if (this.outcome)
+      return;
+    this.outcome = result;
+    this.resolveDone(result);
+  }
+  get csp() {
+    return [
+      "default-src 'none'",
+      `script-src 'nonce-${this.nonce}'`,
+      `style-src 'nonce-${this.nonce}' https://fonts.googleapis.com`,
+      "font-src https://fonts.gstatic.com",
+      "connect-src 'self'",
+      "form-action 'none'",
+      "base-uri 'none'"
+    ].join("; ");
   }
   loopback(scheme = "") {
     return [`${scheme}127.0.0.1:${this.port}`, `${scheme}localhost:${this.port}`];
@@ -444,7 +465,13 @@ class CaptureSession {
     if (req.method === "GET") {
       if (path !== this.token)
         return reply(res, 404);
-      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.writeHead(200, {
+        "content-type": "text/html; charset=utf-8",
+        "content-security-policy": this.csp,
+        "cache-control": "no-store",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff"
+      });
       res.end(this.page);
       return;
     }
@@ -455,15 +482,16 @@ class CaptureSession {
     const origin = req.headers.origin;
     if (origin && !this.loopback("http://").includes(origin))
       return reply(res, 403);
-    if (this.settled)
+    if (this.outcome)
       return reply(res, 409, "already stored");
     if (req.headers["content-length"] == null)
       return reply(res, 411, "length required");
     let values;
     try {
       values = JSON.parse(await readBody(req)).secrets ?? {};
-    } catch {
-      return reply(res, 400, "bad body");
+    } catch (e) {
+      const tooLarge = e instanceof BodyTooLarge;
+      return reply(res, tooLarge ? 413 : 400, tooLarge ? "too large" : "bad body");
     }
     for (const name of this.opts.names) {
       if (!values[name])
@@ -474,20 +502,18 @@ class CaptureSession {
         const { label, retrieve } = dispatchStore(name, this.opts.dest, values[name]);
         return { name, dest: label, retrieve };
       });
-      this.settled = true;
-      this.result.stored = true;
-      this.result.secrets = secrets;
-      this.resolveDone(this.result);
+      this.settle({ status: "stored", secrets });
       reply(res, 200, "ok");
     } catch (e) {
       if (e instanceof ValidationError)
         return reply(res, 400, e.message);
-      this.result.error = e.message;
-      this.settled = true;
-      this.resolveDone(this.result);
+      this.settle({ status: "failed", error: e.message });
       reply(res, 500, "store error");
     }
   }
+}
+
+class BodyTooLarge extends Error {
 }
 function reply(res, code, body = "") {
   res.writeHead(code);
@@ -496,11 +522,66 @@ function reply(res, code, body = "") {
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let data = "";
-    req.on("data", (chunk) => data += chunk);
+    req.on("data", (chunk) => {
+      data += chunk;
+      if (data.length > MAX_BODY)
+        reject(new BodyTooLarge);
+    });
     req.on("end", () => resolve(data));
     req.on("error", reject);
   });
 }
+// package.json
+var package_default = {
+  name: "@maferland/keyhole",
+  version: "0.5.0",
+  publishConfig: {
+    access: "public"
+  },
+  description: "Hand a secret to your AI coding agent through a localhost form — the value reaches a store by reference and never enters the chat context",
+  type: "module",
+  bin: {
+    keyhole: "bin/keyhole"
+  },
+  files: [
+    "bin/keyhole",
+    "README.md",
+    "LICENSE"
+  ],
+  scripts: {
+    build: 'bun build src/cli-entry.ts --target node --outfile bin/keyhole --banner "#!/usr/bin/env node" && chmod +x bin/keyhole',
+    prepare: "git config core.hooksPath .githooks",
+    prepublishOnly: "bun run build",
+    test: "vitest run",
+    format: "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  keywords: [
+    "secret",
+    "credential",
+    "api-key",
+    "keychain",
+    "security",
+    "localhost",
+    "claude"
+  ],
+  homepage: "https://github.com/maferland/keyhole",
+  repository: "https://github.com/maferland/keyhole",
+  license: "MIT",
+  author: {
+    name: "Marc-Antoine Ferland",
+    email: "maferland@users.noreply.github.com"
+  },
+  engines: {
+    node: ">=18"
+  },
+  devDependencies: {
+    "@types/node": "^22.10.0",
+    prettier: "^3.4.0",
+    typescript: "^5.7.0",
+    vitest: "^2.1.0"
+  }
+};
 
 // src/cli.ts
 var CURRENT_VERSION = package_default.version;
@@ -528,20 +609,35 @@ DEST (default: keychain):
   env:/path            append/replace NAME=value lines in an env file (0600)
 
 stdout on success (one JSON line):
-  {"stored":true,"secrets":[{"name","dest","retrieve"}, ...]}`;
+  {"stored":true,"secrets":[{"name","dest","retrieve"}, ...]}
+
+exit: 0 stored · 2 timed out or bad usage · 3 store failure
+env:  BROWSER=true prints the URL without opening a browser`;
+function value(argv, i, flag) {
+  const v = argv[i];
+  if (v === undefined)
+    throw new Error(`${flag} needs a value`);
+  return v;
+}
+function intArg(raw, flag, min) {
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < min)
+    throw new Error(`${flag} needs an integer >= ${min}, got '${raw}'`);
+  return n;
+}
 function parseArgs(argv) {
   const names = [];
   const args = { names, dest: "keychain", context: "", port: 0, timeout: 300 };
   for (let i = 0;i < argv.length; i++) {
     const a = argv[i];
     if (a === "--dest")
-      args.dest = argv[++i];
+      args.dest = value(argv, ++i, a);
     else if (a === "--context")
-      args.context = argv[++i];
+      args.context = value(argv, ++i, a);
     else if (a === "--port")
-      args.port = Number(argv[++i]);
+      args.port = intArg(value(argv, ++i, a), a, 0);
     else if (a === "--timeout")
-      args.timeout = Number(argv[++i]);
+      args.timeout = intArg(value(argv, ++i, a), a, 1);
     else if (a === "-h" || a === "--help") {
       process.stdout.write(HELP + `
 `);
@@ -553,9 +649,7 @@ function parseArgs(argv) {
   }
   if (names.length === 0)
     throw new Error("need at least one secret name");
-  if (args.dest.startsWith("file:") && names.length > 1) {
-    throw new Error("file: stores a single secret — use keychain (default) or env: for multiple");
-  }
+  validateDest(args.dest, names);
   return args;
 }
 function log(msg) {
@@ -570,12 +664,9 @@ function openBrowser(url) {
     spawn(cmd, [url], { stdio: "ignore", detached: true }).unref();
   } catch {}
 }
+var EXIT = { stored: 0, timeout: 2, failed: 3 };
 function exitCode(result) {
-  if (result.stored)
-    return 0;
-  if (result.error)
-    return 3;
-  return 2;
+  return EXIT[result.status];
 }
 async function main(argv = process.argv.slice(2)) {
   let args;
@@ -598,15 +689,14 @@ async function main(argv = process.argv.slice(2)) {
   checkUpdate();
   const result = await session.wait(args.timeout * 1000);
   session.close();
-  const code = exitCode(result);
-  if (code === 0)
-    process.stdout.write(JSON.stringify(result) + `
+  if (result.status === "stored")
+    process.stdout.write(JSON.stringify({ stored: true, secrets: result.secrets }) + `
 `);
-  else if (code === 3)
+  else if (result.status === "failed")
     log(`keyhole: store failed: ${result.error}`);
   else
     log("keyhole: timed out, nothing stored");
-  return code;
+  return exitCode(result);
 }
 
 // src/cli-entry.ts

@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process"
 
 import { CaptureSession, type Result } from "./server.ts"
+import { validateDest } from "./stores.ts"
 import pkg from "../package.json" with { type: "json" }
 
 const CURRENT_VERSION = pkg.version
@@ -42,17 +43,33 @@ DEST (default: keychain):
   env:/path            append/replace NAME=value lines in an env file (0600)
 
 stdout on success (one JSON line):
-  {"stored":true,"secrets":[{"name","dest","retrieve"}, ...]}`
+  {"stored":true,"secrets":[{"name","dest","retrieve"}, ...]}
+
+exit: 0 stored · 2 timed out or bad usage · 3 store failure
+env:  BROWSER=true prints the URL without opening a browser`
+
+function value(argv: string[], i: number, flag: string): string {
+  const v = argv[i]
+  if (v === undefined) throw new Error(`${flag} needs a value`)
+  return v
+}
+
+function intArg(raw: string, flag: string, min: number): number {
+  const n = Number(raw)
+  if (!Number.isInteger(n) || n < min)
+    throw new Error(`${flag} needs an integer >= ${min}, got '${raw}'`)
+  return n
+}
 
 export function parseArgs(argv: string[]): Args {
   const names: string[] = []
   const args: Args = { names, dest: "keychain", context: "", port: 0, timeout: 300 }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
-    if (a === "--dest") args.dest = argv[++i]
-    else if (a === "--context") args.context = argv[++i]
-    else if (a === "--port") args.port = Number(argv[++i])
-    else if (a === "--timeout") args.timeout = Number(argv[++i])
+    if (a === "--dest") args.dest = value(argv, ++i, a)
+    else if (a === "--context") args.context = value(argv, ++i, a)
+    else if (a === "--port") args.port = intArg(value(argv, ++i, a), a, 0)
+    else if (a === "--timeout") args.timeout = intArg(value(argv, ++i, a), a, 1)
     else if (a === "-h" || a === "--help") {
       process.stdout.write(HELP + "\n")
       process.exit(0)
@@ -60,9 +77,7 @@ export function parseArgs(argv: string[]): Args {
     else names.push(a)
   }
   if (names.length === 0) throw new Error("need at least one secret name")
-  if (args.dest.startsWith("file:") && names.length > 1) {
-    throw new Error("file: stores a single secret — use keychain (default) or env: for multiple")
-  }
+  validateDest(args.dest, names)
   return args
 }
 
@@ -80,10 +95,10 @@ function openBrowser(url: string): void {
   }
 }
 
+const EXIT: Record<Result["status"], number> = { stored: 0, timeout: 2, failed: 3 }
+
 export function exitCode(result: Result): number {
-  if (result.stored) return 0
-  if (result.error) return 3
-  return 2
+  return EXIT[result.status]
 }
 
 export async function main(argv: string[] = process.argv.slice(2)): Promise<number> {
@@ -111,9 +126,10 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   const result = await session.wait(args.timeout * 1000)
   session.close()
 
-  const code = exitCode(result)
-  if (code === 0) process.stdout.write(JSON.stringify(result) + "\n")
-  else if (code === 3) log(`keyhole: store failed: ${result.error}`)
+  // The wire format is the documented contract, kept independent of the internal union.
+  if (result.status === "stored")
+    process.stdout.write(JSON.stringify({ stored: true, secrets: result.secrets }) + "\n")
+  else if (result.status === "failed") log(`keyhole: store failed: ${result.error}`)
   else log("keyhole: timed out, nothing stored")
-  return code
+  return exitCode(result)
 }
