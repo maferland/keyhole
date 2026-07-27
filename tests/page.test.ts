@@ -60,6 +60,11 @@ describe("buildPage content", () => {
     expect(html).not.toContain("registry.npmjs.org")
   })
 
+  // Someone types a secret into this page, so it asks the network for nothing at all.
+  it("references no off-machine URL", () => {
+    expect(page(["API_KEY"], "ctx", "file:/tmp/x")).not.toMatch(/https?:\/\//)
+  })
+
   it("shows the capture URL without a doubled slash", () => {
     expect(page(["A"])).toContain("<div class=url>127.0.0.1/s/tok3n</div>")
   })

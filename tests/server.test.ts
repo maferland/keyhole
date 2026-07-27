@@ -196,6 +196,7 @@ describe("response hardening", () => {
     const r = await raw(s.port, { path: s.token })
     expect(r.head).toContain("default-src 'none'")
     expect(r.head).toContain("connect-src 'self'")
+    expect(r.head).not.toMatch(/content-security-policy:.*https?:\/\//)
     expect(r.head).toContain("cache-control: no-store")
     expect(r.head).toContain("referrer-policy: no-referrer")
     const nonce = r.head.match(/script-src 'nonce-([^']+)'/)?.[1]

@@ -15,15 +15,12 @@ function render(template: string, slots: Record<string, string>): string {
 const TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1">
 <title>Keyhole | Stop pasting secrets into your agent</title>
-<link rel=preconnect href="https://fonts.googleapis.com">
-<link rel=preconnect href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel=stylesheet>
 <style nonce="{nonce}">
  :root{
    --bg:#0a0e0c;--sf:#0e1411;--si:#070b09;--tb:#0a100d;--sp:#0f1512;
    --ac:#b48cff;--tx:#e8f0ea;--tb2:#aeb9b1;--mu:#a0aca5;--di:#96a49c;
    --cl:#cfd8d1;--so:#9aa79d;--la:#7a9085;--fa:#6e8078;--da:#d36b5e;--in:#7fb8d8;
-   --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+   --mono:ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace;
  }
  *{box-sizing:border-box}
  html,body{height:100%}
