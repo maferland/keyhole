@@ -11,17 +11,29 @@ describe("parseArgs", () => {
     expect(a.timeout).toBe(30)
   })
 
-  it("defaults to keychain, a random port and a 300s timeout", () => {
-    expect(parseArgs(["A"])).toMatchObject({ dest: "keychain", port: 0, timeout: 300 })
+  it("defaults to keychain, a random port, a 300s timeout and no receipt", () => {
+    expect(parseArgs(["A"])).toMatchObject({
+      dest: "keychain",
+      port: 0,
+      timeout: 300,
+      receipt: "",
+    })
+  })
+
+  it("takes a receipt path", () => {
+    expect(parseArgs(["A", "--receipt", "./audit/r.json"]).receipt).toBe("./audit/r.json")
   })
 
   it("keeps a context value that looks like a flag", () => {
     expect(parseArgs(["A", "--context", "-n flag-ish text"]).context).toBe("-n flag-ish text")
   })
 
-  it.each(["--dest", "--context", "--port", "--timeout"])("rejects %s without a value", (flag) => {
-    expect(() => parseArgs(["A", flag])).toThrow(/needs a value/)
-  })
+  it.each(["--dest", "--context", "--port", "--timeout", "--receipt"])(
+    "rejects %s without a value",
+    (flag) => {
+      expect(() => parseArgs(["A", flag])).toThrow(/needs a value/)
+    },
+  )
 
   it.each([
     ["--port", "abc"],

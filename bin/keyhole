@@ -3,8 +3,211 @@
 // src/cli.ts
 import { spawn } from "node:child_process";
 
-// src/server.ts
+// src/receipt.ts
 import { randomBytes } from "node:crypto";
+
+// src/stores.ts
+import { spawnSync } from "node:child_process";
+import {
+  closeSync,
+  constants as FS,
+  existsSync,
+  fchmodSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  renameSync,
+  writeSync
+} from "node:fs";
+import { homedir, userInfo } from "node:os";
+import { dirname } from "node:path";
+
+class ValidationError extends Error {
+}
+var ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+var defaultRunner = (cmd, args) => {
+  const r = spawnSync(cmd, args, { encoding: "utf8" });
+  return { status: r.status, stderr: r.stderr ?? "" };
+};
+function storeKeychain(name, service, value, run = defaultRunner) {
+  const account = userInfo().username;
+  const r = run("security", [
+    "add-generic-password",
+    "-U",
+    "-a",
+    account,
+    "-s",
+    service,
+    "-w",
+    value
+  ]);
+  if (r.status !== 0)
+    throw new Error(`keychain store failed (security exit ${r.status})`);
+  return `security find-generic-password -s ${service} -a ${account} -w`;
+}
+function expandHome(path) {
+  return path.startsWith("~/") ? homedir() + path.slice(1) : path;
+}
+function ensureParent(path) {
+  mkdirSync(dirname(path) || ".", { recursive: true, mode: 448 });
+}
+function open0600(path) {
+  const fd = openSync(path, FS.O_WRONLY | FS.O_CREAT | FS.O_TRUNC | FS.O_NOFOLLOW, 384);
+  fchmodSync(fd, 384);
+  return fd;
+}
+function readNoFollow(path) {
+  const fd = openSync(path, FS.O_RDONLY | FS.O_NOFOLLOW);
+  try {
+    return readFileSync(fd, "utf8");
+  } finally {
+    closeSync(fd);
+  }
+}
+function writeFd(fd, data) {
+  try {
+    writeSync(fd, data);
+  } finally {
+    closeSync(fd);
+  }
+}
+function writeAtomic0600(path, data) {
+  path = expandHome(path);
+  ensureParent(path);
+  const tmp = `${path}.keyhole-${process.pid}`;
+  writeFd(open0600(tmp), data);
+  renameSync(tmp, path);
+}
+function storeFile(path, value) {
+  path = expandHome(path);
+  ensureParent(path);
+  writeFd(open0600(path), value);
+  return path;
+}
+function storeEnv(name, path, value) {
+  if (!ENV_NAME.test(name))
+    throw new ValidationError(`env: invalid variable name '${name}'`);
+  if (/[\n\r]/.test(value))
+    throw new ValidationError("env: cannot store a value containing newlines");
+  path = expandHome(path);
+  const kept = existsSync(path) ? readNoFollow(path).split(`
+`).filter(Boolean).filter((line) => line.split("=", 1)[0] !== name).map((line) => line + `
+`).join("") : "";
+  writeAtomic0600(path, kept + `${name}=${value}
+`);
+  return `set -a; source ${path}; set +a   # then \${${name}}`;
+}
+function keychainService(name, dest) {
+  const idx = dest.indexOf(":");
+  return idx === -1 ? name : dest.slice(idx + 1);
+}
+function validateDest(dest, names) {
+  if (dest === "keychain")
+    return;
+  if (dest.startsWith("keychain:")) {
+    if (!keychainService(names[0], dest))
+      throw new Error("keychain: empty service name");
+    return;
+  }
+  if (dest.startsWith("file:")) {
+    if (!dest.slice(5))
+      throw new Error("file: needs a path");
+    if (names.length > 1)
+      throw new Error("file: stores a single secret — use keychain (default) or env: for multiple");
+    return;
+  }
+  if (dest.startsWith("env:")) {
+    if (!dest.slice(4))
+      throw new Error("env: needs a path");
+    const bad = names.find((name) => !ENV_NAME.test(name));
+    if (bad)
+      throw new Error(`env: invalid variable name '${bad}'`);
+    return;
+  }
+  throw new Error(`unknown --dest: '${dest}'`);
+}
+function dispatchStore(name, dest, value) {
+  if (dest === "keychain" || dest.startsWith("keychain:")) {
+    const service = keychainService(name, dest);
+    return { label: `keychain:${service}`, retrieve: storeKeychain(name, service, value) };
+  }
+  if (dest.startsWith("file:"))
+    return { label: dest, retrieve: storeFile(dest.slice(5), value) };
+  if (dest.startsWith("env:"))
+    return { label: dest, retrieve: storeEnv(name, dest.slice(4), value) };
+  throw new ValidationError(`unknown --dest: '${dest}'`);
+}
+// package.json
+var package_default = {
+  name: "@maferland/keyhole",
+  version: "0.6.0",
+  publishConfig: {
+    access: "public"
+  },
+  description: "Hand a secret to your AI coding agent through a localhost form — the value reaches a store by reference and never enters the chat context",
+  type: "module",
+  bin: {
+    keyhole: "bin/keyhole"
+  },
+  files: [
+    "bin/keyhole",
+    "README.md",
+    "LICENSE"
+  ],
+  scripts: {
+    build: 'bun build src/cli-entry.ts --target node --outfile bin/keyhole --banner "#!/usr/bin/env node" && chmod +x bin/keyhole',
+    prepare: "git config core.hooksPath .githooks",
+    prepublishOnly: "bun run build",
+    test: "vitest run",
+    format: "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  keywords: [
+    "secret",
+    "credential",
+    "api-key",
+    "keychain",
+    "security",
+    "localhost",
+    "claude"
+  ],
+  homepage: "https://github.com/maferland/keyhole",
+  repository: "https://github.com/maferland/keyhole",
+  license: "MIT",
+  author: {
+    name: "Marc-Antoine Ferland",
+    email: "maferland@users.noreply.github.com"
+  },
+  engines: {
+    node: ">=18"
+  },
+  devDependencies: {
+    "@types/node": "^22.10.0",
+    prettier: "^3.4.0",
+    typescript: "^5.7.0",
+    vitest: "^2.1.0"
+  }
+};
+
+// src/receipt.ts
+var RECEIPT_SCHEMA = "keyhole.secret_reference_receipt.v1";
+function buildReceipt(secrets, context) {
+  return {
+    schema: RECEIPT_SCHEMA,
+    keyhole: package_default.version,
+    request_id: randomBytes(8).toString("hex"),
+    created_at: new Date().toISOString(),
+    context,
+    secrets: secrets.map(({ name, dest, retrieve }) => ({ name, dest, retrieve }))
+  };
+}
+function writeReceipt(path, receipt) {
+  writeAtomic0600(path, JSON.stringify(receipt, null, 2) + `
+`);
+}
+
+// src/server.ts
+import { randomBytes as randomBytes2 } from "node:crypto";
 import { createServer } from "node:http";
 
 // src/page.ts
@@ -268,146 +471,15 @@ function buildPage(names, context, dest, token, nonce) {
   });
 }
 
-// src/stores.ts
-import { spawnSync } from "node:child_process";
-import {
-  closeSync,
-  constants as FS,
-  existsSync,
-  fchmodSync,
-  mkdirSync,
-  openSync,
-  readFileSync,
-  renameSync,
-  writeSync
-} from "node:fs";
-import { homedir, userInfo } from "node:os";
-import { dirname } from "node:path";
-
-class ValidationError extends Error {
-}
-var ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
-var defaultRunner = (cmd, args) => {
-  const r = spawnSync(cmd, args, { encoding: "utf8" });
-  return { status: r.status, stderr: r.stderr ?? "" };
-};
-function storeKeychain(name, service, value, run = defaultRunner) {
-  const account = userInfo().username;
-  const r = run("security", [
-    "add-generic-password",
-    "-U",
-    "-a",
-    account,
-    "-s",
-    service,
-    "-w",
-    value
-  ]);
-  if (r.status !== 0)
-    throw new Error(`keychain store failed (security exit ${r.status})`);
-  return `security find-generic-password -s ${service} -a ${account} -w`;
-}
-function expandHome(path) {
-  return path.startsWith("~/") ? homedir() + path.slice(1) : path;
-}
-function ensureParent(path) {
-  mkdirSync(dirname(path) || ".", { recursive: true, mode: 448 });
-}
-function open0600(path) {
-  const fd = openSync(path, FS.O_WRONLY | FS.O_CREAT | FS.O_TRUNC | FS.O_NOFOLLOW, 384);
-  fchmodSync(fd, 384);
-  return fd;
-}
-function readNoFollow(path) {
-  const fd = openSync(path, FS.O_RDONLY | FS.O_NOFOLLOW);
-  try {
-    return readFileSync(fd, "utf8");
-  } finally {
-    closeSync(fd);
-  }
-}
-function writeFd(fd, data) {
-  try {
-    writeSync(fd, data);
-  } finally {
-    closeSync(fd);
-  }
-}
-function writeAtomic0600(path, data) {
-  const tmp = `${path}.keyhole-${process.pid}`;
-  writeFd(open0600(tmp), data);
-  renameSync(tmp, path);
-}
-function storeFile(path, value) {
-  path = expandHome(path);
-  ensureParent(path);
-  writeFd(open0600(path), value);
-  return path;
-}
-function storeEnv(name, path, value) {
-  if (!ENV_NAME.test(name))
-    throw new ValidationError(`env: invalid variable name '${name}'`);
-  if (/[\n\r]/.test(value))
-    throw new ValidationError("env: cannot store a value containing newlines");
-  path = expandHome(path);
-  ensureParent(path);
-  const kept = existsSync(path) ? readNoFollow(path).split(`
-`).filter(Boolean).filter((line) => line.split("=", 1)[0] !== name).map((line) => line + `
-`).join("") : "";
-  writeAtomic0600(path, kept + `${name}=${value}
-`);
-  return `set -a; source ${path}; set +a   # then \${${name}}`;
-}
-function keychainService(name, dest) {
-  const idx = dest.indexOf(":");
-  return idx === -1 ? name : dest.slice(idx + 1);
-}
-function validateDest(dest, names) {
-  if (dest === "keychain")
-    return;
-  if (dest.startsWith("keychain:")) {
-    if (!keychainService(names[0], dest))
-      throw new Error("keychain: empty service name");
-    return;
-  }
-  if (dest.startsWith("file:")) {
-    if (!dest.slice(5))
-      throw new Error("file: needs a path");
-    if (names.length > 1)
-      throw new Error("file: stores a single secret — use keychain (default) or env: for multiple");
-    return;
-  }
-  if (dest.startsWith("env:")) {
-    if (!dest.slice(4))
-      throw new Error("env: needs a path");
-    const bad = names.find((name) => !ENV_NAME.test(name));
-    if (bad)
-      throw new Error(`env: invalid variable name '${bad}'`);
-    return;
-  }
-  throw new Error(`unknown --dest: '${dest}'`);
-}
-function dispatchStore(name, dest, value) {
-  if (dest === "keychain" || dest.startsWith("keychain:")) {
-    const service = keychainService(name, dest);
-    return { label: `keychain:${service}`, retrieve: storeKeychain(name, service, value) };
-  }
-  if (dest.startsWith("file:"))
-    return { label: dest, retrieve: storeFile(dest.slice(5), value) };
-  if (dest.startsWith("env:"))
-    return { label: dest, retrieve: storeEnv(name, dest.slice(4), value) };
-  throw new ValidationError(`unknown --dest: '${dest}'`);
-}
-
 // src/server.ts
 var MAX_BODY = 64 * 1024;
 
 class CaptureSession {
   opts;
-  token = "/" + randomBytes(18).toString("base64url");
+  token = "/" + randomBytes2(18).toString("base64url");
   done;
   outcome = null;
-  nonce = randomBytes(16).toString("base64");
+  nonce = randomBytes2(16).toString("base64");
   page;
   server;
   resolveDone;
@@ -531,57 +603,6 @@ function readBody(req) {
     req.on("error", reject);
   });
 }
-// package.json
-var package_default = {
-  name: "@maferland/keyhole",
-  version: "0.5.0",
-  publishConfig: {
-    access: "public"
-  },
-  description: "Hand a secret to your AI coding agent through a localhost form — the value reaches a store by reference and never enters the chat context",
-  type: "module",
-  bin: {
-    keyhole: "bin/keyhole"
-  },
-  files: [
-    "bin/keyhole",
-    "README.md",
-    "LICENSE"
-  ],
-  scripts: {
-    build: 'bun build src/cli-entry.ts --target node --outfile bin/keyhole --banner "#!/usr/bin/env node" && chmod +x bin/keyhole',
-    prepare: "git config core.hooksPath .githooks",
-    prepublishOnly: "bun run build",
-    test: "vitest run",
-    format: "prettier --write .",
-    "format:check": "prettier --check ."
-  },
-  keywords: [
-    "secret",
-    "credential",
-    "api-key",
-    "keychain",
-    "security",
-    "localhost",
-    "claude"
-  ],
-  homepage: "https://github.com/maferland/keyhole",
-  repository: "https://github.com/maferland/keyhole",
-  license: "MIT",
-  author: {
-    name: "Marc-Antoine Ferland",
-    email: "maferland@users.noreply.github.com"
-  },
-  engines: {
-    node: ">=18"
-  },
-  devDependencies: {
-    "@types/node": "^22.10.0",
-    prettier: "^3.4.0",
-    typescript: "^5.7.0",
-    vitest: "^2.1.0"
-  }
-};
 
 // src/cli.ts
 var CURRENT_VERSION = package_default.version;
@@ -599,6 +620,7 @@ function checkUpdate() {
   }).catch(() => {});
 }
 var HELP = `usage: keyhole <name>... [--dest DEST] [--context TEXT] [--port N] [--timeout S]
+                         [--receipt PATH]
 
 Capture one or more secrets via a localhost form. The values reach the store by
 reference and never touch stdout. Pass several names for a multi-field form.
@@ -610,6 +632,10 @@ DEST (default: keychain):
 
 stdout on success (one JSON line):
   {"stored":true,"secrets":[{"name","dest","retrieve"}, ...]}
+
+--receipt PATH writes a reference receipt for review: what was granted, where, and
+under which keyhole version. It never contains a secret value, and is written only
+after a successful store. stdout is unchanged either way.
 
 exit: 0 stored · 2 timed out or bad usage · 3 store failure
 env:  BROWSER=true prints the URL without opening a browser`;
@@ -627,13 +653,15 @@ function intArg(raw, flag, min) {
 }
 function parseArgs(argv) {
   const names = [];
-  const args = { names, dest: "keychain", context: "", port: 0, timeout: 300 };
+  const args = { names, dest: "keychain", context: "", port: 0, timeout: 300, receipt: "" };
   for (let i = 0;i < argv.length; i++) {
     const a = argv[i];
     if (a === "--dest")
       args.dest = value(argv, ++i, a);
     else if (a === "--context")
       args.context = value(argv, ++i, a);
+    else if (a === "--receipt")
+      args.receipt = value(argv, ++i, a);
     else if (a === "--port")
       args.port = intArg(value(argv, ++i, a), a, 0);
     else if (a === "--timeout")
@@ -664,6 +692,13 @@ function openBrowser(url) {
     spawn(cmd, [url], { stdio: "ignore", detached: true }).unref();
   } catch {}
 }
+function writeReceiptOrWarn(path, secrets, context) {
+  try {
+    writeReceipt(path, buildReceipt(secrets, context));
+  } catch (e) {
+    log(`keyhole: warning: no receipt written to ${path}: ${e.message}`);
+  }
+}
 var EXIT = { stored: 0, timeout: 2, failed: 3 };
 function exitCode(result) {
   return EXIT[result.status];
@@ -689,10 +724,12 @@ async function main(argv = process.argv.slice(2)) {
   checkUpdate();
   const result = await session.wait(args.timeout * 1000);
   session.close();
-  if (result.status === "stored")
+  if (result.status === "stored") {
+    if (args.receipt)
+      writeReceiptOrWarn(args.receipt, result.secrets, args.context);
     process.stdout.write(JSON.stringify({ stored: true, secrets: result.secrets }) + `
 `);
-  else if (result.status === "failed")
+  } else if (result.status === "failed")
     log(`keyhole: store failed: ${result.error}`);
   else
     log("keyhole: timed out, nothing stored");

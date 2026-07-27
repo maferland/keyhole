@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process"
 
-import { CaptureSession, type Result } from "./server.ts"
+import { buildReceipt, writeReceipt } from "./receipt.ts"
+import { CaptureSession, type Result, type Stored } from "./server.ts"
 import { validateDest } from "./stores.ts"
 import pkg from "../package.json" with { type: "json" }
 
@@ -30,9 +31,11 @@ export interface Args {
   context: string
   port: number
   timeout: number
+  receipt: string
 }
 
 const HELP = `usage: keyhole <name>... [--dest DEST] [--context TEXT] [--port N] [--timeout S]
+                         [--receipt PATH]
 
 Capture one or more secrets via a localhost form. The values reach the store by
 reference and never touch stdout. Pass several names for a multi-field form.
@@ -44,6 +47,10 @@ DEST (default: keychain):
 
 stdout on success (one JSON line):
   {"stored":true,"secrets":[{"name","dest","retrieve"}, ...]}
+
+--receipt PATH writes a reference receipt for review: what was granted, where, and
+under which keyhole version. It never contains a secret value, and is written only
+after a successful store. stdout is unchanged either way.
 
 exit: 0 stored · 2 timed out or bad usage · 3 store failure
 env:  BROWSER=true prints the URL without opening a browser`
@@ -63,11 +70,12 @@ function intArg(raw: string, flag: string, min: number): number {
 
 export function parseArgs(argv: string[]): Args {
   const names: string[] = []
-  const args: Args = { names, dest: "keychain", context: "", port: 0, timeout: 300 }
+  const args: Args = { names, dest: "keychain", context: "", port: 0, timeout: 300, receipt: "" }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (a === "--dest") args.dest = value(argv, ++i, a)
     else if (a === "--context") args.context = value(argv, ++i, a)
+    else if (a === "--receipt") args.receipt = value(argv, ++i, a)
     else if (a === "--port") args.port = intArg(value(argv, ++i, a), a, 0)
     else if (a === "--timeout") args.timeout = intArg(value(argv, ++i, a), a, 1)
     else if (a === "-h" || a === "--help") {
@@ -92,6 +100,16 @@ function openBrowser(url: string): void {
     spawn(cmd, [url], { stdio: "ignore", detached: true }).unref()
   } catch {
     // headless / no browser — the URL is already on stderr
+  }
+}
+
+// The secret is already stored by this point, so a receipt that cannot be written must
+// not change the exit code. It has to be loud instead of silent.
+function writeReceiptOrWarn(path: string, secrets: Stored[], context: string): void {
+  try {
+    writeReceipt(path, buildReceipt(secrets, context))
+  } catch (e) {
+    log(`keyhole: warning: no receipt written to ${path}: ${(e as Error).message}`)
   }
 }
 
@@ -127,9 +145,10 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   session.close()
 
   // The wire format is the documented contract, kept independent of the internal union.
-  if (result.status === "stored")
+  if (result.status === "stored") {
+    if (args.receipt) writeReceiptOrWarn(args.receipt, result.secrets, args.context)
     process.stdout.write(JSON.stringify({ stored: true, secrets: result.secrets }) + "\n")
-  else if (result.status === "failed") log(`keyhole: store failed: ${result.error}`)
+  } else if (result.status === "failed") log(`keyhole: store failed: ${result.error}`)
   else log("keyhole: timed out, nothing stored")
   return exitCode(result)
 }
