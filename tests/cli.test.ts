@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
-import { exitCode, parseArgs } from "../src/cli.ts"
+import { exitCode, parseArgs, updateCheckDisabled } from "../src/cli.ts"
 import type { Result } from "../src/server.ts"
 
 describe("parseArgs", () => {
@@ -87,5 +87,32 @@ describe("exitCode", () => {
     [{ status: "failed", error: "boom" }, 3],
   ])("maps %j to exit %i", (result, code) => {
     expect(exitCode(result)).toBe(code)
+  })
+})
+
+describe("updateCheckDisabled", () => {
+  const ENV_KEYS = ["CLAUDE_PLUGIN_ROOT", "KEYHOLE_NO_UPDATE_CHECK"] as const
+  const saved: Record<string, string | undefined> = {}
+
+  beforeEach(() => {
+    ENV_KEYS.forEach((key) => {
+      saved[key] = process.env[key]
+      delete process.env[key]
+    })
+  })
+  afterEach(() => {
+    ENV_KEYS.forEach((key) => {
+      if (saved[key] === undefined) delete process.env[key]
+      else process.env[key] = saved[key]
+    })
+  })
+
+  it("checks by default", () => {
+    expect(updateCheckDisabled()).toBe(false)
+  })
+
+  it.each(ENV_KEYS)("skips the check when %s is set", (key) => {
+    process.env[key] = "1"
+    expect(updateCheckDisabled()).toBe(true)
   })
 })
