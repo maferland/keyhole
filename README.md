@@ -133,7 +133,9 @@ Guards:
 - random URL token per run; any other path 404s
 - rejects cross-origin POSTs
 - single-use: stores once, then 409s further submits
-- distinct exit codes: `0` stored, `2` timed out, `3` store failure
+- distinct exit codes: `0` stored, `2` timed out or bad usage, `3` store failure
+- bad `--dest`, `--port`, or `--timeout` values fail before the form opens, so no
+  one types a secret into a run that cannot succeed
 
 ## Optional hook
 
