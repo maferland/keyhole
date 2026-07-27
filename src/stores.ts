@@ -18,28 +18,27 @@ export class ValidationError extends Error {}
 
 export const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 
-export type Runner = (
-  cmd: string,
-  args: string[],
-  stdin: string,
-) => { status: number | null; stderr: string }
+export type Runner = (cmd: string, args: string[]) => { status: number | null; stderr: string }
 
-const defaultRunner: Runner = (cmd, args, stdin) => {
-  const r = spawnSync(cmd, args, { encoding: "utf8", input: stdin })
+const defaultRunner: Runner = (cmd, args) => {
+  const r = spawnSync(cmd, args, { encoding: "utf8" })
   return { status: r.status, stderr: r.stderr ?? "" }
 }
 
 export function storeKeychain(service: string, value: string, run: Runner = defaultRunner): string {
-  if (/[\n\r]/.test(value))
-    throw new ValidationError("keychain: cannot store a value containing newlines")
   const account = userInfo().username
-  // `-w` with no argument reads the value and its confirmation from stdin, keeping it out
-  // of argv where `ps` would show it to any process of this user.
-  const r = run(
-    "security",
-    ["add-generic-password", "-U", "-a", account, "-s", service, "-w"],
-    `${value}\n${value}\n`,
-  )
+  // The value rides in argv, visible to same-user `ps` for one exec. Passing it on stdin
+  // instead silently truncates at 128 bytes, which loses long tokens outright.
+  const r = run("security", [
+    "add-generic-password",
+    "-U",
+    "-a",
+    account,
+    "-s",
+    service,
+    "-w",
+    value,
+  ])
   if (r.status !== 0) throw new Error(`keychain store failed (security exit ${r.status})`)
   return `security find-generic-password -s ${service} -a ${account} -w`
 }
@@ -76,8 +75,8 @@ function writeFd(fd: number, data: string): void {
   }
 }
 
-// Temp + rename so an interrupted rewrite cannot leave the file truncated. Replaces a
-// symlink at `path` instead of refusing it, which is safe: nothing is written through it.
+// Temp + rename so an interrupted rewrite cannot leave the file truncated. A symlink at
+// `path` never reaches here: storeEnv reads it first with O_NOFOLLOW and fails.
 export function writeAtomic0600(path: string, data: string): void {
   path = expandHome(path)
   ensureParent(path)

@@ -27,6 +27,9 @@ jobs:
       - run: bunx prettier --check .
       - run: bunx tsc --noEmit
       - run: bun run test
+        env:
+          # Drives the real `security` binary; the darwin check skips it elsewhere.
+          KEYHOLE_KEYCHAIN_TEST: "1"
       - run: bun run build
       # bin/keyhole is committed and is what consumers actually run, so a stale
       # bundle has to fail here instead of shipping.
