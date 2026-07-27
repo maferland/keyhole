@@ -52,10 +52,10 @@ const TEMPLATE = `<!doctype html><html lang=en><head><meta charset=utf-8>
  .logo-row{margin-bottom:18px}
  .logo-row.center{justify-content:center;margin-bottom:20px}
  .title{font-size:14.5px;font-weight:700;color:var(--tx);margin:0 0 14px;line-height:1.4}
- .chip-ctx{display:inline-block;background:color-mix(in srgb,var(--ac) 8%,transparent);
+ .chip-ctx{display:block;background:color-mix(in srgb,var(--ac) 8%,transparent);
    border:1px solid color-mix(in srgb,var(--ac) 24%,transparent);color:var(--so);
-   font-size:11px;border-radius:6px;padding:3px 8px;margin:0 0 18px;max-width:100%;
-   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+   font-size:11px;line-height:1.6;border-radius:6px;padding:7px 9px;margin:0 0 18px;
+   overflow-wrap:break-word}
  .fields{display:flex;flex-direction:column;gap:16px;margin-bottom:18px}
  .field label{display:block;font-size:11px;color:var(--la);letter-spacing:.1em;
    text-transform:uppercase;margin:0 0 7px}
@@ -250,7 +250,7 @@ export function buildPage(names: string[], context: string, dest: string, token:
       ? "env"
       : "keychain"
 
-  const ctxchip = context ? `<div class=chip-ctx title="${esc(context)}">${esc(context)}</div>` : ""
+  const ctxchip = context ? `<div class=chip-ctx>${esc(context)}</div>` : ""
 
   const fields = names
     .map(
