@@ -144,7 +144,7 @@ keyhole OPENAI_API_KEY --context 'ingest script' --receipt .keyhole/receipt.json
 ```json
 {
   "schema": "keyhole.secret_reference_receipt.v1",
-  "keyhole": "0.8.0",
+  "keyhole": "0.8.1",
   "request_id": "9f3c1e7a52b04d18",
   "created_at": "2026-07-27T18:04:11.402Z",
   "context": "ingest script",
@@ -200,11 +200,14 @@ keyhole automatically whenever it would otherwise ask you to paste a secret.
 - keyhole keeps the value out of the agent's context. It is not at-rest
   encryption. `file:`/`env:` destinations are plaintext on disk (mode `0600`);
   `keychain` is encrypted at rest.
-- No destination puts the value on a command line. `keychain` feeds it to
-  `security` over stdin, so `ps` never shows it.
-- `keychain` therefore cannot store a multi-line value, since `security` reads it
-  from a line-based prompt. Use `file:` for a PEM key or anything else with
-  newlines in it.
+- The `keychain` destination passes the value on `argv`, briefly visible to `ps` on
+  a multi-user machine. On a shared box prefer `file:` or `env:`. keyhole 0.8.0
+  tried feeding it to `security` over stdin instead; that path silently truncates
+  at 128 bytes, so it was reverted in 0.8.1. Correct storage of a long token beats
+  closing a same-user window of a few milliseconds.
+- A `keychain` value that is not plain ASCII comes back from
+  `find-generic-password -w` as a hex string rather than the raw bytes. Decode with
+  `xxd -r -p` if your secret has non-ASCII in it.
 
 ## Develop
 
