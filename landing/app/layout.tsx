@@ -10,7 +10,7 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "keyhole — stop pasting secrets into your agent",
+  title: "keyhole | stop pasting secrets into your agent",
   description:
     "Hand your AI coding agent a reference to a secret instead of the value. keyhole opens a localhost form, stores the secret, and gives the agent only a retrieve command.",
 };
